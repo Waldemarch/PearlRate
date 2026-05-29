@@ -4,7 +4,7 @@
 # Run this on the Mac mini on a schedule (launchd / cron / Hermes task).
 #
 # Required env vars:
-#   PEARLRATE_URL   base URL of the deployed site, e.g. https://pearlrate.pages.dev
+#   PEARLRATE_URL   base URL of the deployed site, e.g. https://pearlrate.dcnb.eu
 #   PRICE_TOKEN     shared secret, identical to the PRICE_TOKEN set on the Pages project
 # Optional:
 #   PRL_MARKET      SafeTrade market id (default: prlusdt)
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 MARKET="${PRL_MARKET:-prlusdt}"
-: "${PEARLRATE_URL:?set PEARLRATE_URL (e.g. https://pearlrate.pages.dev)}"
+: "${PEARLRATE_URL:?set PEARLRATE_URL (e.g. https://pearlrate.dcnb.eu)}"
 : "${PRICE_TOKEN:?set PRICE_TOKEN}"
 
 TICKER_URL="https://safe.trade/api/v2/trade/public/markets/${MARKET}/tickers"

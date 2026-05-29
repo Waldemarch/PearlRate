@@ -18,9 +18,6 @@ robust than reading a browser window.
 
 ## 1. Cloudflare setup (once)
 
-The KV namespace already exists: **`pearlrate-price`**, id
-`cb93529a1f724c3a9e104350bd7c8a63` (also declared in `wrangler.toml`).
-
 Two stores already exist (and are declared in `wrangler.toml`):
 
 | Store | Name | Binding | id |
@@ -43,8 +40,8 @@ Bindings** (skip if you deploy with Wrangler — `wrangler.toml` covers it):
 Redeploy (any push to the production branch redeploys). Verify:
 
 ```bash
-curl https://pearlrate.pages.dev/api/price          # -> {"price":null} until first push
-curl https://pearlrate.pages.dev/api/history?range=7d   # -> {"range":"7d","points":[]}
+curl https://pearlrate.dcnb.eu/api/price          # -> {"price":null} until first push
+curl https://pearlrate.dcnb.eu/api/history?range=7d   # -> {"range":"7d","points":[]}
 ```
 
 Each `POST /api/price` writes the latest value to KV **and** appends a row to
@@ -58,7 +55,7 @@ Requires `curl` and `jq` (`brew install jq`).
 Test it manually first:
 
 ```bash
-export PEARLRATE_URL="https://pearlrate.pages.dev"
+export PEARLRATE_URL="https://pearlrate.dcnb.eu"
 export PRICE_TOKEN="<the same secret you set on Cloudflare>"
 ./scripts/update-prl-price.sh
 # -> {"price":1.45,"ts":...,"source":"safetrade:prlusdt"}
@@ -84,7 +81,7 @@ Create `~/Library/LaunchAgents/biz.chrobok.pearlrate-price.plist`:
   </array>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PEARLRATE_URL</key><string>https://pearlrate.pages.dev</string>
+    <key>PEARLRATE_URL</key><string>https://pearlrate.dcnb.eu</string>
     <key>PRICE_TOKEN</key><string>REPLACE_WITH_SECRET</string>
   </dict>
   <key>StartInterval</key><integer>300</integer>   <!-- every 5 min -->
@@ -106,7 +103,7 @@ the **API**, not the browser window — so no open tab is needed:
 > **Task: Update PRL price every 5 minutes**
 > Every 5 minutes, run the shell script
 > `/Users/YOU/PearlRate/scripts/update-prl-price.sh` with the environment
-> variables `PEARLRATE_URL=https://pearlrate.pages.dev` and
+> variables `PEARLRATE_URL=https://pearlrate.dcnb.eu` and
 > `PRICE_TOKEN=<secret>` set. The script fetches the latest PRL/USDT price from
 > the SafeTrade public API and POSTs it to the PearlRate `/api/price` endpoint.
 > On success it prints a JSON record like
