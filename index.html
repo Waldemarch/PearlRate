@@ -212,7 +212,7 @@
     <div class="ctl">
       <div class="top"><label>PRL price (USDT)</label><input class="num" id="priceNum" type="number" step="0.01" value="1.45" /></div>
       <input type="range" id="priceRange" min="0.10" max="5" step="0.01" value="1.45" />
-      <span class="hint">SafeTrade spot · ATH $1.65 (29 May 2026)</span>
+      <span class="hint" id="priceHint">SafeTrade spot · ATH $1.65 (29 May 2026)</span>
     </div>
     <div class="ctl">
       <div class="top"><label>Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
@@ -439,6 +439,32 @@
   bindPair('elec','#elecRange','#elecNum',2);
   bindPair('fee','#feeRange','#feeNum',null);
   compute();
+
+  // ---- live PRL price (Cloudflare KV via /api/price), best-effort ----
+  function applyLivePrice(p){
+    if(!isFinite(p) || p<=0 || p>1e6) return;
+    S.price=p;
+    $('#priceRange').value=p; $('#priceNum').value=p.toFixed(2);
+    persist(); compute();
+  }
+  (function fetchLivePrice(){
+    if(!('fetch' in window)) return;
+    const ctrl = ('AbortController' in window) ? new AbortController() : null;
+    if(ctrl) setTimeout(()=>ctrl.abort(), 6000);
+    fetch('/api/price', {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
+      .then(r=> r.ok ? r.json() : Promise.reject())
+      .then(d=>{
+        const p = parseFloat(d && d.price);
+        if(!isFinite(p)) return;
+        applyLivePrice(p);
+        const hint=$('#priceHint');
+        if(hint && d.ts){
+          const mins = Math.max(0, Math.round((Date.now()-d.ts)/60000));
+          hint.textContent = 'SafeTrade live · '+(mins<1?'updated just now':'updated '+mins+' min ago');
+        }
+      })
+      .catch(()=>{});  // offline / endpoint not set up yet -> keep default
+  })();
 })();
 </script>
 </body>

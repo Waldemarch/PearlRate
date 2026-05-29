@@ -1,0 +1,15 @@
+# Cloudflare Pages configuration for PearlRate.
+# The site itself is static (repo root); the only server-side piece is the
+# Pages Function in functions/api/price.js, which needs the KV binding below.
+name = "pearlrate"
+pages_build_output_dir = "."
+compatibility_date = "2025-05-29"
+
+# KV namespace "pearlrate-price" — stores the latest PRL price.
+[[kv_namespaces]]
+binding = "PRICE_KV"
+id = "cb93529a1f724c3a9e104350bd7c8a63"
+
+# NOTE: the PRICE_TOKEN secret is NOT stored here. Set it once with:
+#   wrangler pages secret put PRICE_TOKEN
+# or in the dashboard: Pages project -> Settings -> Variables and Secrets.
