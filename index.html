@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PearlRate — PRL Mining Rental Calculator</title>
+<meta name="description" content="Break-even rental and profitability calculator for mining Pearl (PRL) on NVIDIA GPUs. Live recompute by PRL price and network difficulty." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0a0c0f;
+    --panel:#11151a;
+    --panel-2:#161b22;
+    --line:#222a33;
+    --line-soft:#1a2027;
+    --ink:#e8edf2;
+    --ink-dim:#8b97a4;
+    --ink-faint:#5b6671;
+    --green:#4ade80;
+    --green-dim:#1f3a2a;
+    --red:#fb7185;
+    --amber:#fbbf24;
+    --pearl:linear-gradient(115deg,#a8e6e2 0%,#c9b8f0 35%,#f0b8d4 65%,#bfe3c0 100%);
+    --pearl-soft:linear-gradient(115deg,rgba(168,230,226,.16),rgba(201,184,240,.16),rgba(240,184,212,.16));
+    --thumb-bg:#0a0c0f; --thumb-border:#c9b8f0; --thumb-glow:rgba(201,184,240,.15);
+    --glow-1:rgba(201,184,240,.10); --glow-2:rgba(168,230,226,.08);
+  }
+  /* Warm, slightly-yellow light theme */
+  [data-theme="light"]{
+    --bg:#faf5e9;
+    --panel:#fffdf6;
+    --panel-2:#f4ecda;
+    --line:#e6dcc4;
+    --line-soft:#efe7d5;
+    --ink:#2c2820;
+    --ink-dim:#6f6453;
+    --ink-faint:#a89c83;
+    --green:#15803d;
+    --green-dim:#d8ecdd;
+    --red:#dc2626;
+    --amber:#b45309;
+    --pearl:linear-gradient(115deg,#1f8f86 0%,#7a52c0 38%,#c33f86 66%,#3f9a55 100%);
+    --pearl-soft:linear-gradient(115deg,rgba(31,143,134,.12),rgba(122,82,192,.12),rgba(195,63,134,.12));
+    --thumb-bg:#fffdf6; --thumb-border:#7a52c0; --thumb-glow:rgba(122,82,192,.18);
+    --glow-1:rgba(122,82,192,.06); --glow-2:rgba(31,143,134,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:14px;
+    line-height:1.5;
+    min-height:100vh;
+    background-image:
+      radial-gradient(900px 500px at 78% -10%, var(--glow-1), transparent 60%),
+      radial-gradient(700px 420px at 5% 8%, var(--glow-2), transparent 55%);
+    -webkit-font-smoothing:antialiased;
+    transition:background-color .25s ease, color .25s ease;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 20px 80px}
+
+  /* Header */
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:26px}
+  .brand{display:flex;flex-direction:column;gap:6px}
+  .kicker{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink-faint)}
+  h1{
+    font-family:"Bricolage Grotesque",sans-serif;
+    font-weight:800;
+    font-size:clamp(34px,6vw,56px);
+    line-height:.95;
+    letter-spacing:-.02em;
+    background:var(--pearl);
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;
+    filter:drop-shadow(0 2px 18px rgba(201,184,240,.18));
+  }
+  .tagline{color:var(--ink-dim);font-size:13px;max-width:46ch}
+  .pricebadge{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:14px;padding:12px 16px;min-width:172px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .pricebadge .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .pricebadge .val{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:30px;line-height:1.1;margin-top:2px}
+  .pricebadge .val small{font-size:14px;color:var(--ink-dim);font-weight:600}
+  .headright{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .themebtn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    padding:8px 13px;border-radius:10px;cursor:pointer;transition:.15s;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .themebtn:hover{border-color:var(--thumb-border);color:var(--ink)}
+  .themebtn svg{width:15px;height:15px;display:block}
+  .themebtn .ico-sun{display:none}
+  [data-theme="light"] .themebtn .ico-sun{display:block}
+  [data-theme="light"] .themebtn .ico-moon{display:none}
+
+  /* Controls */
+  .controls{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:18px;margin-bottom:22px;
+  }
+  .ctl{display:flex;flex-direction:column;gap:9px}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .ctl .num{
+    font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;color:var(--ink);
+    background:transparent;border:none;text-align:right;width:96px;
+  }
+  .ctl .num:focus{outline:none;color:#fff}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;height:4px;border-radius:99px;
+    background:linear-gradient(90deg,var(--line-soft),var(--line));outline:none;width:100%;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--thumb-bg);border:2px solid var(--thumb-border);cursor:pointer;
+    box-shadow:0 0 0 3px var(--thumb-glow),0 2px 8px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--thumb-bg);border:2px solid var(--thumb-border);cursor:pointer;
+  }
+  .ctl .hint{font-size:10.5px;color:var(--ink-faint)}
+
+  /* Table */
+  .tablecard{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .tscroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:760px}
+  thead th{
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);
+    font-weight:500;text-align:right;padding:14px 16px;border-bottom:1px solid var(--line);
+    white-space:nowrap;background:var(--panel-2);
+  }
+  thead th:first-child{text-align:left}
+  tbody td{padding:13px 16px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  tbody td:first-child{text-align:left}
+  tbody tr:hover{background:rgba(255,255,255,.015)}
+  .gpu{display:flex;flex-direction:column;gap:1px}
+  .gpu .nm{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .gpu .arch{font-size:10px;color:var(--ink-faint);letter-spacing:.06em}
+  .est{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);border:1px solid rgba(251,191,36,.35);border-radius:5px;padding:1px 5px}
+  .chip{font-size:8.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;border-radius:5px;padding:1px 6px;white-space:nowrap;vertical-align:middle}
+  .chip-verified{color:var(--green);background:var(--green-dim);border:1px solid var(--green)}
+  .chip-est{color:var(--amber);background:rgba(251,191,36,.10);border:1px dashed rgba(251,191,36,.55)}
+  .est-yield{font-style:italic;color:var(--ink-dim)}
+  .qty{width:52px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
+       font-family:inherit;font-size:13px;text-align:center;padding:5px 4px}
+  .qty:focus{outline:none;border-color:#c9b8f0}
+  .big{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:16px}
+  .pearltext{background:var(--pearl);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .pos{color:var(--green)} .neg{color:var(--red)} .dim{color:var(--ink-dim)}
+  .breakeven{font-weight:700}
+  tfoot td{padding:15px 16px;text-align:right;border-top:2px solid var(--line);background:var(--panel-2)}
+  tfoot td:first-child{text-align:left;font-weight:600;letter-spacing:.04em}
+  tfoot .big{font-size:17px}
+
+  /* Legend / notes */
+  .legend{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
+  .note{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .note h3{font-family:"Bricolage Grotesque",sans-serif;font-size:13px;letter-spacing:.02em;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .note p,.note li{font-size:12px;color:var(--ink-dim);line-height:1.55}
+  .note ul{padding-left:16px;display:flex;flex-direction:column;gap:4px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--pearl);display:inline-block}
+  .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 0}
+  button.reset{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s;
+  }
+  button.reset:hover{border-color:#c9b8f0;color:var(--ink)}
+  footer{margin-top:26px;font-size:11px;color:var(--ink-faint);line-height:1.6}
+  footer a{color:var(--ink-dim)}
+  .disc{margin-top:8px}
+
+  @media(max-width:820px){
+    .controls{grid-template-columns:repeat(2,1fr)}
+    .legend{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="kicker">Pearl (PRL) · Proof-of-Useful-Work</span>
+      <h1>PearlRate</h1>
+      <span class="tagline">Break-even rental &amp; mining profitability for NVIDIA GPUs. Tune PRL price and network difficulty — every figure recomputes live.</span>
+    </div>
+    <div class="headright">
+      <button class="themebtn" id="themeBtn" type="button" aria-label="Toggle colour theme">
+        <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <span id="themeLabel">Light</span>
+      </button>
+      <div class="pricebadge">
+        <div class="lab">PRL price</div>
+        <div class="val">$<span id="badgePrice">1.63</span> <small>USDT</small></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="ctl">
+      <div class="top"><label>PRL price (USDT)</label><input class="num" id="priceNum" type="number" step="0.01" value="1.63" /></div>
+      <input type="range" id="priceRange" min="0.10" max="5" step="0.01" value="1.63" />
+      <span class="hint">SafeTrade spot · ATH $1.65 (29 May 2026)</span>
+    </div>
+    <div class="ctl">
+      <div class="top"><label>Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
+      <input type="range" id="diffRange" min="0.25" max="8" step="0.05" value="1.00" />
+      <span class="hint">Relative to 26 May 2026. 2× hashrate → half yield</span>
+    </div>
+    <div class="ctl">
+      <div class="top"><label>Electricity $/kWh</label><input class="num" id="elecNum" type="number" step="0.01" value="0.10" /></div>
+      <input type="range" id="elecRange" min="0" max="0.6" step="0.01" value="0.10" />
+      <span class="hint">Affects self-mine net only</span>
+    </div>
+    <div class="ctl">
+      <div class="top"><label>Pool fee %</label><input class="num" id="feeNum" type="number" step="0.5" value="4" /></div>
+      <input type="range" id="feeRange" min="0" max="10" step="0.5" value="4" />
+      <span class="hint">Applied to break-even rental ceiling</span>
+    </div>
+  </section>
+
+  <div class="tablecard">
+    <div class="tscroll">
+      <table>
+        <thead>
+          <tr>
+            <th>GPU</th>
+            <th>Qty</th>
+            <th>Yield / day<br>(PRL)</th>
+            <th>Gross / day</th>
+            <th>Gross / h</th>
+            <th>Break-even<br>rent / h</th>
+            <th>Self-mine<br>net / day</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+        <tfoot>
+          <tr>
+            <td>Fleet total</td>
+            <td><span class="dim" id="fGpus">0</span></td>
+            <td><span class="dim" id="fYield">—</span></td>
+            <td class="big pearltext" id="fGrossDay">$0.00</td>
+            <td class="big" id="fGrossH">$0.00</td>
+            <td class="dim" id="fBlank">—</td>
+            <td class="big pos" id="fNet">$0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="toolbar"><button class="reset" id="resetBtn">Reset defaults</button></div>
+
+  <div class="legend">
+    <div class="note">
+      <h3><span class="dot"></span> How the columns work</h3>
+      <ul>
+        <li><strong>Yield/day</strong> — base benchmark yield ÷ difficulty multiplier. Fixed by hardware, independent of token price.</li>
+        <li><strong>Gross</strong> — yield × PRL price. Revenue before any costs.</li>
+        <li><strong>Break-even rent/h</strong> — the max hourly rental a miner can pay and still profit (gross/h minus pool fee). Your pricing ceiling per card as a host.</li>
+        <li><strong>Self-mine net/day</strong> — running your own card, paying only electricity.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h3><span class="dot"></span> Assumptions &amp; caveats</h3>
+      <ul>
+        <li>Baseline yields from hashrate.no benchmarks (26 May 2026), Pearl Research Labs PRL — not the Solana "Perle" token.</li>
+        <li><span class="chip chip-verified">Verified*</span> &nbsp;<strong>*</strong> yield measured on a real hashrate.no PRL benchmark (26 May 2026).</li>
+        <li><span class="chip chip-est">Estimated*</span> &nbsp;<strong>*</strong> no verified PRL benchmark — yield scaled from tensor-core throughput and shown <span class="est-yield">(italic, in parentheses)</span>. Double-click any yield cell to override.</li>
+        <li>PRL trades on a thin market (SafeTrade) — paper valuations may not clear at size.</li>
+        <li>Network difficulty climbs fast (&gt;9 EH/s already). Push the slider up to stress-test.</li>
+        <li>Not financial advice. DYOR.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    PearlRate · open dashboard. Yields editable inline — double-tap a yield cell to override with your own benchmark.
+    <div class="disc">Data sourced from public mining benchmarks; figures are estimates and will drift with price and difficulty.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Baseline yields (PRL/day) at 26 May 2026 network difficulty, and power draw (W).
+  const DEFAULT_CARDS = [
+    {id:'5090',  name:'RTX 5090',    arch:'Blackwell', yield:33.14, power:510, est:false},
+    {id:'4090',  name:'RTX 4090',    arch:'Ada',       yield:24.00, power:430, est:true },
+    {id:'5080',  name:'RTX 5080',    arch:'Blackwell', yield:19.78, power:358, est:false},
+    {id:'5070ti',name:'RTX 5070 Ti', arch:'Blackwell', yield:16.50, power:285, est:true },
+    {id:'3090',  name:'RTX 3090',    arch:'Ampere',    yield:11.72, power:320, est:false},
+    {id:'5070',  name:'RTX 5070',    arch:'Blackwell', yield:11.30, power:235, est:true },
+    {id:'4060ti',name:'RTX 4060 Ti', arch:'Ada',       yield:6.40,  power:155, est:true },
+    {id:'3060',  name:'RTX 3060',    arch:'Ampere',    yield:4.00,  power:160, est:true },
+  ];
+  const DEFAULTS = {price:1.63, diff:1.00, elec:0.10, fee:4};
+
+  // ---- state (localStorage-guarded so it never throws in any sandbox) ----
+  const store = {
+    get(k,f){ try{const v=localStorage.getItem(k);return v===null?f:JSON.parse(v);}catch(e){return f;} },
+    set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+  };
+  let S = store.get('pearlrate:state', {
+    price:DEFAULTS.price, diff:DEFAULTS.diff, elec:DEFAULTS.elec, fee:DEFAULTS.fee,
+    qty:{}, yields:{}
+  });
+  S.qty = S.qty || {}; S.yields = S.yields || {};
+
+  const $ = s => document.querySelector(s);
+  const rowsEl = $('#rows');
+  const money = n => '$' + (Math.abs(n) < 0.005 ? '0.00' : n.toFixed(2));
+  const money3 = n => '$' + n.toFixed(2);
+
+  function baseYield(c){ const o=S.yields[c.id]; return (typeof o==='number'&&isFinite(o))?o:c.yield; }
+
+  function renderRows(){
+    rowsEl.innerHTML='';
+    DEFAULT_CARDS.forEach(c=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML =
+        '<td><div class="gpu"><span class="nm">'+c.name+
+        (c.est
+          ? ' <span class="chip chip-est">Estimated*</span>'
+          : ' <span class="chip chip-verified">Verified*</span>')+
+        '</span><span class="arch">'+c.arch+' · '+c.power+'W</span></div></td>'+
+        '<td><input class="qty" type="number" min="0" step="1" data-q="'+c.id+'" value="'+(S.qty[c.id]||0)+'"></td>'+
+        '<td><span class="yieldcell" data-y="'+c.id+'" title="double-click to edit"></span></td>'+
+        '<td data-grossday="'+c.id+'"></td>'+
+        '<td class="big" data-grossh="'+c.id+'"></td>'+
+        '<td class="breakeven pearltext" data-be="'+c.id+'"></td>'+
+        '<td data-net="'+c.id+'"></td>';
+      rowsEl.appendChild(tr);
+    });
+    rowsEl.querySelectorAll('.qty').forEach(inp=>{
+      inp.addEventListener('input',()=>{ S.qty[inp.dataset.q]=Math.max(0,parseInt(inp.value||'0',10)); persist(); compute(); });
+    });
+    rowsEl.querySelectorAll('.yieldcell').forEach(cell=>{
+      cell.addEventListener('dblclick',()=>{
+        const id=cell.dataset.y, cur=baseYield(DEFAULT_CARDS.find(c=>c.id===id));
+        const v=prompt('Base yield PRL/day for this card (at baseline difficulty):', cur);
+        if(v!==null){ const n=parseFloat(v); if(isFinite(n)&&n>=0){ S.yields[id]=n; persist(); compute(); } }
+      });
+    });
+  }
+
+  function compute(){
+    const P=S.price, D=Math.max(0.01,S.diff), E=S.elec, F=S.fee/100;
+    let tQty=0,tGrossDay=0,tGrossH=0,tNet=0;
+    DEFAULT_CARDS.forEach(c=>{
+      const by=baseYield(c);
+      const eff=by/D;                       // PRL/day at chosen difficulty
+      const grossDay=eff*P;
+      const grossH=grossDay/24;
+      const be=grossH*(1-F);                 // break-even rental ceiling /h
+      const elecDay=(c.power/1000)*24*E;
+      const net=grossDay-elecDay;            // self-mine net /day
+      const q=S.qty[c.id]||0;
+
+      const yc=$('[data-y="'+c.id+'"]');
+      yc.textContent = c.est ? '('+eff.toFixed(2)+')' : eff.toFixed(2);
+      yc.classList.toggle('est-yield', !!c.est);
+      $('[data-grossday="'+c.id+'"]').textContent = money(grossDay);
+      $('[data-grossh="'+c.id+'"]').textContent = money3(grossH);
+      $('[data-be="'+c.id+'"]').textContent = money3(be);
+      const netCell=$('[data-net="'+c.id+'"]');
+      netCell.textContent = money(net);
+      netCell.className = net>=0 ? 'pos':'neg';
+
+      tQty+=q; tGrossDay+=grossDay*q; tGrossH+=grossH*q; tNet+=net*q;
+    });
+    $('#fGpus').textContent=tQty;
+    $('#fGrossDay').textContent=money(tGrossDay);
+    $('#fGrossH').textContent=money3(tGrossH);
+    $('#fNet').textContent=money(tNet);
+    $('#fNet').className='big '+(tNet>=0?'pos':'neg');
+    $('#badgePrice').textContent=P.toFixed(2);
+  }
+
+  // ---- bind paired range+number controls ----
+  function bindPair(key, rangeId, numId, dp){
+    const r=$(rangeId), n=$(numId);
+    const set=(val,from)=>{
+      val=parseFloat(val); if(!isFinite(val))return;
+      S[key]=val;
+      if(from!=='range') r.value=val;
+      if(from!=='num')   n.value=dp!=null?val.toFixed(dp):val;
+      persist(); compute();
+    };
+    r.value=S[key]; n.value=dp!=null?Number(S[key]).toFixed(dp):S[key];
+    r.addEventListener('input',()=>set(r.value,'range'));
+    n.addEventListener('input',()=>set(n.value,'num'));
+  }
+
+  let saveTimer=null;
+  function persist(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>store.set('pearlrate:state',S),250); }
+
+  $('#resetBtn').addEventListener('click',()=>{
+    S={price:DEFAULTS.price,diff:DEFAULTS.diff,elec:DEFAULTS.elec,fee:DEFAULTS.fee,qty:{},yields:{}};
+    store.set('pearlrate:state',S);
+    renderRows();
+    $('#priceRange').value=S.price; $('#priceNum').value=S.price.toFixed(2);
+    $('#diffRange').value=S.diff;   $('#diffNum').value=S.diff.toFixed(2);
+    $('#elecRange').value=S.elec;   $('#elecNum').value=S.elec.toFixed(2);
+    $('#feeRange').value=S.fee;     $('#feeNum').value=S.fee;
+    compute();
+  });
+
+  // ---- theme toggle (warm light / dark), persisted ----
+  const themeBtn=$('#themeBtn'), themeLabel=$('#themeLabel');
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t==='light'?'light':'dark');
+    themeLabel.textContent = (t==='light') ? 'Dark' : 'Light';
+  }
+  let theme = store.get('pearlrate:theme','dark');
+  applyTheme(theme);
+  themeBtn.addEventListener('click',()=>{
+    theme = (theme==='light') ? 'dark' : 'light';
+    store.set('pearlrate:theme', theme);
+    applyTheme(theme);
+  });
+
+  renderRows();
+  bindPair('price','#priceRange','#priceNum',2);
+  bindPair('diff','#diffRange','#diffNum',2);
+  bindPair('elec','#elecRange','#elecNum',2);
+  bindPair('fee','#feeRange','#feeNum',null);
+  compute();
+})();
+</script>
+</body>
+</html>
