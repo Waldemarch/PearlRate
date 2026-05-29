@@ -21,22 +21,34 @@ robust than reading a browser window.
 The KV namespace already exists: **`pearlrate-price`**, id
 `cb93529a1f724c3a9e104350bd7c8a63` (also declared in `wrangler.toml`).
 
-In the Cloudflare dashboard → **Workers & Pages → pearlrate → Settings**:
+Two stores already exist (and are declared in `wrangler.toml`):
 
-1. **Bindings → KV namespace**: add binding
-   - Variable name: `PRICE_KV`
-   - Namespace: `pearlrate-price`
-   (If you deploy with Wrangler, `wrangler.toml` already does this.)
-2. **Variables and Secrets**: add a **secret**
+| Store | Name | Binding | id |
+|---|---|---|---|
+| KV (latest price) | `pearlrate-price` | `PRICE_KV` | `cb93529a1f724c3a9e104350bd7c8a63` |
+| D1 (price history) | `pearlrate-history` | `PRICE_DB` | `733d5091-4c91-48d3-b1d8-c1488f9121f0` |
+
+The D1 table is created (`prl_price(id, ts, price, source)` + index on `ts`).
+
+In the Cloudflare dashboard → **Workers & Pages → pearlrate → Settings →
+Bindings** (skip if you deploy with Wrangler — `wrangler.toml` covers it):
+
+1. **KV namespace**: variable `PRICE_KV` → namespace `pearlrate-price`
+2. **D1 database**: variable `PRICE_DB` → database `pearlrate-history`
+3. **Variables and Secrets**: add a **secret**
    - Name: `PRICE_TOKEN`
    - Value: a long random string (e.g. `openssl rand -hex 24`)
-   Keep this value — the Mac mini needs the same string.
+   - Keep this value — the Mac mini needs the same string.
 
 Redeploy (any push to the production branch redeploys). Verify:
 
 ```bash
-curl https://pearlrate.pages.dev/api/price        # -> {"price":null} until first push
+curl https://pearlrate.pages.dev/api/price          # -> {"price":null} until first push
+curl https://pearlrate.pages.dev/api/history?range=7d   # -> {"range":"7d","points":[]}
 ```
+
+Each `POST /api/price` writes the latest value to KV **and** appends a row to
+D1. The page draws the chart from `GET /api/history?range=24h|7d|30d|all`.
 
 ## 2. Mac mini updater
 

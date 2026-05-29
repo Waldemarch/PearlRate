@@ -45,6 +45,22 @@ export async function onRequestPost({ request, env }) {
     ts: Date.now(),
     source: body && body.source ? String(body.source).slice(0, 64) : "unknown",
   };
+
+  // Latest price -> KV (fast single read for the page).
   await env.PRICE_KV.put(KEY, JSON.stringify(record));
+
+  // Full history -> D1 (for the chart). Guarded so the endpoint still works
+  // before the D1 binding is configured.
+  if (env.PRICE_DB) {
+    try {
+      await env.PRICE_DB
+        .prepare("INSERT INTO prl_price (ts, price, source) VALUES (?, ?, ?)")
+        .bind(record.ts, record.price, record.source)
+        .run();
+    } catch (e) {
+      // don't fail the request if the history write hiccups
+    }
+  }
+
   return new Response(JSON.stringify(record), { headers: JSON_HEADERS });
 }

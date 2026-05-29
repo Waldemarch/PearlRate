@@ -10,6 +10,12 @@ compatibility_date = "2025-05-29"
 binding = "PRICE_KV"
 id = "cb93529a1f724c3a9e104350bd7c8a63"
 
+# D1 database "pearlrate-history" — stores the full price history for the chart.
+[[d1_databases]]
+binding = "PRICE_DB"
+database_name = "pearlrate-history"
+database_id = "733d5091-4c91-48d3-b1d8-c1488f9121f0"
+
 # NOTE: the PRICE_TOKEN secret is NOT stored here. Set it once with:
 #   wrangler pages secret put PRICE_TOKEN
 # or in the dashboard: Pages project -> Settings -> Variables and Secrets.
