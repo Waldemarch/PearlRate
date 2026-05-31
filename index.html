@@ -170,6 +170,22 @@
   .note p,.note li{font-size:12px;color:var(--ink-dim);line-height:1.55}
   .note ul{padding-left:16px;display:flex;flex-direction:column;gap:4px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--pearl);display:inline-block}
+  /* Price history chart */
+  .chartcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px 12px;margin-top:16px}
+  .chartcard .chead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .chartcard h3{font-family:"Bricolage Grotesque",sans-serif;font-size:13px;letter-spacing:.02em;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .ranges{display:flex;gap:6px}
+  .ranges button{
+    background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    padding:5px 9px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .ranges button:hover{border-color:#c9b8f0;color:var(--ink)}
+  .ranges button.active{border-color:var(--thumb-border);color:var(--ink);background:var(--pearl-soft)}
+  .chartwrap{position:relative;width:100%;height:200px}
+  .chartwrap svg{display:block;width:100%;height:100%;overflow:visible}
+  .chartwrap .axlab{font-size:10px;fill:var(--ink-faint);font-family:"IBM Plex Mono",monospace}
+  .chart-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint)}
   .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 0}
   button.reset{
     background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
@@ -212,7 +228,7 @@
     <div class="ctl">
       <div class="top"><label>PRL price (USDT)</label><input class="num" id="priceNum" type="number" step="0.01" value="1.45" /></div>
       <input type="range" id="priceRange" min="0.10" max="5" step="0.01" value="1.45" />
-      <span class="hint">SafeTrade spot · ATH $1.65 (29 May 2026)</span>
+      <span class="hint" id="priceHint">SafeTrade spot · ATH $1.65 (29 May 2026)</span>
     </div>
     <div class="ctl">
       <div class="top"><label>Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
@@ -258,6 +274,22 @@
           </tr>
         </tfoot>
       </table>
+    </div>
+  </div>
+
+  <div class="chartcard" id="chartCard">
+    <div class="chead">
+      <h3><span class="dot"></span> PRL price history</h3>
+      <div class="ranges" id="ranges">
+        <button data-range="24h">24h</button>
+        <button data-range="7d" class="active">7d</button>
+        <button data-range="30d">30d</button>
+        <button data-range="all">All</button>
+      </div>
+    </div>
+    <div class="chartwrap">
+      <svg id="chartSvg" viewBox="0 0 600 200" preserveAspectRatio="none" aria-label="PRL price history"></svg>
+      <div class="chart-msg" id="chartMsg">Loading…</div>
     </div>
   </div>
 
@@ -439,6 +471,118 @@
   bindPair('elec','#elecRange','#elecNum',2);
   bindPair('fee','#feeRange','#feeNum',null);
   compute();
+
+  // ---- live PRL price (Cloudflare KV via /api/price), best-effort ----
+  function applyLivePrice(p){
+    if(!isFinite(p) || p<=0 || p>1e6) return;
+    S.price=p;
+    $('#priceRange').value=p; $('#priceNum').value=p.toFixed(2);
+    persist(); compute();
+  }
+  (function fetchLivePrice(){
+    if(!('fetch' in window)) return;
+    const ctrl = ('AbortController' in window) ? new AbortController() : null;
+    if(ctrl) setTimeout(()=>ctrl.abort(), 6000);
+    fetch('/api/price', {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
+      .then(r=> r.ok ? r.json() : Promise.reject())
+      .then(d=>{
+        const p = parseFloat(d && d.price);
+        if(!isFinite(p)) return;
+        applyLivePrice(p);
+        const hint=$('#priceHint');
+        if(hint && d.ts){
+          const mins = Math.max(0, Math.round((Date.now()-d.ts)/60000));
+          hint.textContent = 'SafeTrade live · '+(mins<1?'updated just now':'updated '+mins+' min ago');
+        }
+      })
+      .catch(()=>{});  // offline / endpoint not set up yet -> keep default
+  })();
+
+  // ---- price history chart (D1 via /api/history) ----
+  const chartSvg=$('#chartSvg'), chartMsg=$('#chartMsg');
+  let chartRange='7d', chartData=null;
+
+  function fmtTime(t, range){
+    const d=new Date(t);
+    const p=n=>String(n).padStart(2,'0');
+    return range==='24h'
+      ? p(d.getHours())+':'+p(d.getMinutes())
+      : p(d.getDate())+'.'+p(d.getMonth()+1);
+  }
+
+  function drawChart(){
+    if(!chartData || chartData.length<2){
+      chartSvg.innerHTML='';
+      chartMsg.textContent = (chartData && chartData.length<2)
+        ? 'Not enough data yet — points appear as the updater runs.'
+        : 'No data yet.';
+      chartMsg.style.display='flex';
+      return;
+    }
+    chartMsg.style.display='none';
+
+    const W=Math.max(320, chartSvg.clientWidth||600), H=200;
+    const padL=46, padR=14, padT=14, padB=22;
+    chartSvg.setAttribute('viewBox','0 0 '+W+' '+H);
+
+    const pts=chartData;
+    const t0=pts[0].t, t1=pts[pts.length-1].t, tSpan=Math.max(1,t1-t0);
+    let pMin=Infinity, pMax=-Infinity;
+    pts.forEach(p=>{ if(p.p<pMin)pMin=p.p; if(p.p>pMax)pMax=p.p; });
+    if(pMin===pMax){ pMin-=pMin*0.02||0.01; pMax+=pMax*0.02||0.01; }
+    const pSpan=pMax-pMin;
+
+    const X=t=>padL+(t-t0)/tSpan*(W-padL-padR);
+    const Y=p=>padT+(1-(p-pMin)/pSpan)*(H-padT-padB);
+
+    let line='M'+X(pts[0].t).toFixed(1)+' '+Y(pts[0].p).toFixed(1);
+    for(let i=1;i<pts.length;i++) line+=' L'+X(pts[i].t).toFixed(1)+' '+Y(pts[i].p).toFixed(1);
+    const area=line+' L'+X(t1).toFixed(1)+' '+(H-padB)+' L'+X(t0).toFixed(1)+' '+(H-padB)+' Z';
+
+    const last=pts[pts.length-1].p;
+    const gridY=p=>'<line x1="'+padL+'" y1="'+Y(p).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(p).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'+
+      '<text class="axlab" x="'+(padL-6)+'" y="'+(Y(p)+3).toFixed(1)+'" text-anchor="end">$'+p.toFixed(2)+'</text>';
+
+    chartSvg.innerHTML=
+      '<defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="#7a52c0" stop-opacity="0.28"/>'+
+        '<stop offset="100%" stop-color="#7a52c0" stop-opacity="0"/>'+
+      '</linearGradient></defs>'+
+      gridY(pMax)+gridY(pMin)+
+      '<path d="'+area+'" fill="url(#cg)" stroke="none"/>'+
+      '<path d="'+line+'" fill="none" stroke="#7a52c0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+
+      '<circle cx="'+X(t1).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="3.2" fill="#7a52c0"/>'+
+      '<text class="axlab" x="'+padL+'" y="'+(H-6)+'" text-anchor="start">'+fmtTime(t0,chartRange)+'</text>'+
+      '<text class="axlab" x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end">'+fmtTime(t1,chartRange)+'</text>';
+  }
+
+  function loadChart(range){
+    chartRange=range;
+    chartMsg.textContent='Loading…'; chartMsg.style.display='flex';
+    const ctrl=('AbortController' in window)?new AbortController():null;
+    if(ctrl) setTimeout(()=>ctrl.abort(),8000);
+    fetch('/api/history?range='+range, {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
+      .then(r=> r.ok ? r.json() : Promise.reject(r.status))
+      .then(d=>{ chartData=(d&&d.points)||[]; drawChart(); })
+      .catch(err=>{
+        chartData=null; chartSvg.innerHTML='';
+        chartMsg.textContent = (err===503)
+          ? 'History not set up yet (connect the D1 binding).'
+          : 'Price history unavailable.';
+        chartMsg.style.display='flex';
+      });
+  }
+
+  $('#ranges').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-range]'); if(!b) return;
+    $('#ranges').querySelectorAll('button').forEach(x=>x.classList.toggle('active', x===b));
+    loadChart(b.dataset.range);
+  });
+
+  let rsz=null;
+  window.addEventListener('resize',()=>{ clearTimeout(rsz); rsz=setTimeout(drawChart,150); });
+
+  loadChart('7d');
 })();
 </script>
 </body>

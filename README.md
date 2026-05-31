@@ -48,7 +48,7 @@ Dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pi
 | Build output directory | `/` (repo root) |
 | Production branch | `main` |
 
-**Save and Deploy.** You get `https://pearlrate.pages.dev`; add a custom domain (e.g. `pearlrate.chrobok.biz.pl`) under **Custom domains**. Every push to `main` redeploys automatically.
+**Save and Deploy.** You get `https://pearlrate.pages.dev`; add a custom domain (e.g. `pearlrate.dcnb.eu`) under **Custom domains**. Every push to `main` redeploys automatically.
 
 > Nothing else is required — it's static, exactly like a `Skipping build step` deploy. The `_headers` file is read natively by Cloudflare Pages (security headers + always-fresh HTML).
 
