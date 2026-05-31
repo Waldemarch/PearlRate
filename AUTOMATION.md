@@ -2,19 +2,26 @@
 
 PearlRate is a static site, so the live price lives in **Cloudflare KV** and is
 served by a tiny **Pages Function** (`functions/api/price.js`). The Mac mini
-fetches the price from the **SafeTrade public API** and pushes it to that
+fetches the price from the **CoinGecko public API** and pushes it to that
 endpoint on a schedule. The page reads `/api/price` on load.
 
 ```
  Mac mini (every N min)                 Cloudflare Pages
  ┌────────────────────┐   POST /api/price  ┌─────────────────────┐
  │ update-prl-price.sh │ ─────────────────▶ │ functions/api/price │──▶ KV (pearlrate-price)
- │  curl SafeTrade API │   Bearer TOKEN     │   GET reads KV ◀────┼──── index.html fetch()
+ │  curl CoinGecko API │   Bearer TOKEN     │   GET reads KV ◀────┼──── index.html fetch()
  └────────────────────┘                     └─────────────────────┘
 ```
 
-No browser scraping — SafeTrade exposes the price directly, which is far more
-robust than reading a browser window.
+No browser scraping — CoinGecko exposes the price directly via JSON, which is
+far more robust than reading a browser window.
+
+> **Why CoinGecko, not SafeTrade?** SafeTrade's native PRL market sits behind a
+> Cloudflare WAF that geo-blocks Polish IPs (a plain `curl` gets `HTTP 403
+> "you have been blocked"`), so it's unreachable from the Mac mini without a
+> third-party proxy. CoinGecko's `wrapped-pearl` (WPRL on Ethereum/Uniswap) is
+> the same asset, reachable with no proxy, and tracks the SafeTrade price
+> closely (within a few % spread).
 
 ## 1. Cloudflare setup (once)
 
@@ -49,8 +56,8 @@ D1. The page draws the chart from `GET /api/history?range=24h|7d|30d|all`.
 
 ## 2. Mac mini updater
 
-`scripts/update-prl-price.sh` fetches `prlusdt` from SafeTrade and POSTs it.
-Requires `curl` and `jq` (`brew install jq`).
+`scripts/update-prl-price.sh` fetches the `wrapped-pearl` USD price from
+CoinGecko and POSTs it. Requires `curl` and `jq` (`brew install jq`).
 
 Test it manually first:
 
@@ -58,11 +65,19 @@ Test it manually first:
 export PEARLRATE_URL="https://pearlrate.dcnb.eu"
 export PRICE_TOKEN="<the same secret you set on Cloudflare>"
 ./scripts/update-prl-price.sh
-# -> {"price":1.45,"ts":...,"source":"safetrade:prlusdt"}
+# -> {"price":0.86,"ts":...,"source":"coingecko:wrapped-pearl"}
 ```
 
-> If SafeTrade lists PRL against a different quote (e.g. PRL/BTC), set
-> `PRL_MARKET=prlbtc`. Check the exact market id in the SafeTrade URL.
+You can dry-run the fetch with **no token and no Cloudflare** set up:
+
+```bash
+PRICE_DRYRUN=1 ./scripts/update-prl-price.sh
+# -> {"price":0.86,"source":"coingecko:wrapped-pearl","dryrun":true}
+```
+
+> To track a different CoinGecko coin, set `PRL_COINGECKO_ID=<id>` (the id is
+> the last path segment of the coin's CoinGecko URL). For higher rate limits,
+> set `COINGECKO_API_KEY=<demo-key>`.
 
 ### Schedule it (launchd — recommended on macOS)
 
@@ -104,13 +119,14 @@ the **API**, not the browser window — so no open tab is needed:
 > Every 5 minutes, run the shell script
 > `/Users/YOU/PearlRate/scripts/update-prl-price.sh` with the environment
 > variables `PEARLRATE_URL=https://pearlrate.dcnb.eu` and
-> `PRICE_TOKEN=<secret>` set. The script fetches the latest PRL/USDT price from
-> the SafeTrade public API and POSTs it to the PearlRate `/api/price` endpoint.
+> `PRICE_TOKEN=<secret>` set. The script fetches the latest PRL price from
+> the CoinGecko public API and POSTs it to the PearlRate `/api/price` endpoint.
 > On success it prints a JSON record like
-> `{"price":1.45,"ts":...,"source":"safetrade:prlusdt"}`. If the script exits
-> non‑zero (network error, malformed price, or HTTP error from the endpoint),
-> log the failure and retry on the next cycle — do not push a fallback value.
+> `{"price":0.86,"ts":...,"source":"coingecko:wrapped-pearl"}`. If the script
+> exits non‑zero (network error, malformed price, or HTTP error from the
+> endpoint), log the failure and retry on the next cycle — do not push a
+> fallback value.
 
-If you specifically need Hermes to read the **browser window** instead of the
-API (e.g. SafeTrade blocks API access), tell me and I'll adapt the script into
-a DOM/OCR-based reader — but expect it to be more fragile.
+If CoinGecko ever rate-limits or drops the `wrapped-pearl` listing, tell me and
+I'll point the script at another source (or wrap the fetch in the Cloudflare
+Worker on a Cron Trigger, which removes the Mac mini entirely).
