@@ -1,0 +1,34 @@
+# Cloudflare Worker — scheduled PRL price updater (Cron Trigger).
+#
+# This is SEPARATE from the Pages project's wrangler.toml in the repo root:
+# Cloudflare Pages can't run cron, so the scheduled fetch lives in a standalone
+# Worker. It binds to the SAME KV namespace and D1 database as the Pages
+# project, so the price it writes is what /api/price and /api/history serve.
+#
+# Deploy:
+#   cd worker && wrangler deploy
+# Test after deploy (forces one update immediately):
+#   curl "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?run=1"
+#
+# Optional vars (set with `wrangler secret put NAME` or in the dashboard):
+#   COINGECKO_API_KEY   demo key for higher CoinGecko rate limits
+#   PRL_COINGECKO_ID    override the coin id (default wrapped-pearl)
+
+name = "pearlrate-price-cron"
+main = "price-cron.js"
+compatibility_date = "2025-05-29"
+
+# Every 5 minutes. Cron is UTC; "*/5 * * * *" = at :00, :05, :10, ...
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Same KV namespace as the Pages project ("pearlrate-price").
+[[kv_namespaces]]
+binding = "PRICE_KV"
+id = "cb93529a1f724c3a9e104350bd7c8a63"
+
+# Same D1 database as the Pages project ("pearlrate-history").
+[[d1_databases]]
+binding = "PRICE_DB"
+database_name = "pearlrate-history"
+database_id = "733d5091-4c91-48d3-b1d8-c1488f9121f0"
