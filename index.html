@@ -193,6 +193,52 @@
     padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s;
   }
   button.reset:hover{border-color:#c9b8f0;color:var(--ink)}
+
+  /* Sponsor / Vast.ai promo */
+  .sponsor{
+    display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:18px 20px;margin-top:16px;position:relative;overflow:hidden;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .sponsor::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(420px 180px at 100% -40%, var(--glow-1), transparent 60%);
+  }
+  .sponsor .who{display:flex;align-items:center;gap:14px;min-width:0;position:relative}
+  .sponsor .vlogo{
+    width:42px;height:42px;flex:0 0 auto;border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--pearl-soft);border:1px solid var(--line);
+  }
+  .sponsor .vlogo svg{width:24px;height:24px;display:block}
+  .sponsor .vlogo svg path{fill:url(#sponsorGrad)}
+  .sponsor .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .sponsor .nm{
+    font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:20px;line-height:1;
+    letter-spacing:-.01em;
+    background:var(--pearl);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .sponsor .sub{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .sponsor .pitch{font-size:11.5px;color:var(--ink-dim);margin-top:2px}
+  .sponsor .cta{
+    flex:0 0 auto;position:relative;display:inline-flex;align-items:center;gap:8px;
+    font-family:inherit;font-size:12px;letter-spacing:.06em;font-weight:600;
+    color:var(--bg);text-decoration:none;white-space:nowrap;
+    background:var(--pearl);border:none;border-radius:11px;padding:11px 18px;cursor:pointer;
+    box-shadow:0 6px 18px rgba(201,184,240,.20);transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  }
+  .sponsor .cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(201,184,240,.32);filter:brightness(1.05)}
+  .sponsor .cta svg{width:14px;height:14px;display:block}
+  .sponsor .adtag{
+    position:absolute;top:10px;right:14px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  @media(max-width:560px){
+    .sponsor{flex-direction:column;align-items:stretch;text-align:left}
+    .sponsor .cta{justify-content:center}
+  }
+
   footer{margin-top:26px;font-size:11px;color:var(--ink-faint);line-height:1.6}
   footer a{color:var(--ink-dim)}
   .disc{margin-top:8px}
@@ -276,6 +322,25 @@
       </table>
     </div>
   </div>
+
+  <a class="sponsor" href="https://cloud.vast.ai/?ref_id=51345" target="_blank" rel="noopener sponsored" style="text-decoration:none">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="sponsorGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8e6e2"/><stop offset="38%" stop-color="#c9b8f0"/><stop offset="66%" stop-color="#f0b8d4"/><stop offset="100%" stop-color="#bfe3c0"/></linearGradient></defs></svg>
+    <span class="adtag">Ad</span>
+    <span class="who">
+      <span class="vlogo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 4h3.4l5.6 12.2L17.6 4H21l-7.4 16h-3.2L3 4z"/></svg>
+      </span>
+      <span class="txt">
+        <span class="nm">Vast.ai</span>
+        <span class="sub">Hosting platform for GPUs</span>
+        <span class="pitch">Rent or host RTX cards from the table above — cheap on-demand GPU compute.</span>
+      </span>
+    </span>
+    <span class="cta">
+      Sign up on Vast
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+    </span>
+  </a>
 
   <div class="chartcard" id="chartCard">
     <div class="chead">
