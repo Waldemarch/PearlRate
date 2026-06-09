@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PearlRate – Prezentacja Techniczna</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens ────────────────────────────────────────────────── */
+    :root {
+      --bg:        #0b0e14;
+      --panel:     #111720;
+      --panel2:    #161d2a;
+      --border:    rgba(255,255,255,0.08);
+      --ink:       #e4e9f0;
+      --ink2:      #8899b0;
+      --ink3:      #55667a;
+      --orange:    #f97316;
+      --blue:      #38bdf8;
+      --green:     #34d399;
+      --purple:    #a78bfa;
+      --pink:      #f472b6;
+      --pearl:     linear-gradient(135deg, #f97316, #f472b6 50%, #a78bfa);
+      --pearl-s:   linear-gradient(135deg, #f97316 0%, #f472b6 100%);
+      --radius:    12px;
+      --radius-sm: 6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg);
+      color: var(--ink);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Progress bar ─────────────────────────────────────────────────── */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: var(--pearl-s);
+      transition: width 0.4s cubic-bezier(.4,0,.2,1);
+      z-index: 100;
+    }
+
+    /* ── Slide counter ────────────────────────────────────────────────── */
+    #slide-counter {
+      position: fixed;
+      top: 16px; right: 20px;
+      font-size: 11px;
+      color: var(--ink3);
+      z-index: 100;
+      letter-spacing: .08em;
+    }
+
+    /* ── Navigation ───────────────────────────────────────────────────── */
+    #nav {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .nav-btn {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s ease;
+    }
+    .nav-btn:hover { background: var(--panel); border-color: rgba(255,255,255,0.18); }
+    .nav-btn:disabled { opacity: .35; cursor: default; }
+
+    #dot-nav {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--ink3);
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .dot.active {
+      background: transparent;
+      width: 22px;
+      border-radius: 3px;
+      background: var(--orange);
+    }
+
+    /* ── Slide wrapper ────────────────────────────────────────────────── */
+    #slides {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 60px 80px 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      transform: translateX(40px);
+      pointer-events: none;
+      transition: opacity .35s ease, transform .35s cubic-bezier(.4,0,.2,1);
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+    .slide.out-left {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+
+    /* ── Typography ───────────────────────────────────────────────────── */
+    .slide-tag {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--orange);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .slide-tag::before {
+      content: '';
+      display: block;
+      width: 20px; height: 2px;
+      background: var(--orange);
+      border-radius: 1px;
+    }
+
+    h1 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: clamp(2.6rem, 5vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+    }
+
+    h2 {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin-bottom: 28px;
+    }
+
+    .gradient-text {
+      background: var(--pearl);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--ink2);
+      line-height: 1.7;
+      max-width: 600px;
+      margin-top: 16px;
+    }
+
+    /* ── Cards grid ───────────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin-bottom: 8px;
+    }
+    .card-body {
+      font-size: 13.5px;
+      color: var(--ink2);
+      line-height: 1.6;
+    }
+    .card-body strong { color: var(--ink); font-weight: 600; }
+
+    /* ── Code blocks ──────────────────────────────────────────────────── */
+    pre, code {
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #c9d1d9;
+      overflow-x: auto;
+    }
+
+    .code-block .kw  { color: #ff7b72; }
+    .code-block .str { color: #a5d6ff; }
+    .code-block .cmt { color: #8b949e; font-style: italic; }
+    .code-block .var { color: #79c0ff; }
+    .code-block .fn  { color: #d2a8ff; }
+    .code-block .num { color: #f8981d; }
+    .code-block .op  { color: #79c0ff; }
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+    }
+    .badge-orange { background: rgba(249,115,22,.15); color: #fb923c; border: 1px solid rgba(249,115,22,.25); }
+    .badge-blue   { background: rgba(56,189,248,.12); color: #38bdf8; border: 1px solid rgba(56,189,248,.2); }
+    .badge-green  { background: rgba(52,211,153,.12); color: #34d399; border: 1px solid rgba(52,211,153,.2); }
+    .badge-purple { background: rgba(167,139,250,.12); color: #a78bfa; border: 1px solid rgba(167,139,250,.2); }
+    .badge-pink   { background: rgba(244,114,182,.12); color: #f472b6; border: 1px solid rgba(244,114,182,.2); }
+
+    /* ── Flow diagram ─────────────────────────────────────────────────── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+    .flow-step {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--ink2);
+      white-space: nowrap;
+    }
+    .flow-step strong { color: var(--ink); }
+    .flow-arrow {
+      color: var(--ink3);
+      font-size: 18px;
+      padding: 0 6px;
+    }
+
+    /* ── Table ────────────────────────────────────────────────────────── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .data-table td {
+      padding: 9px 12px;
+      color: var(--ink2);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .data-table td strong { color: var(--ink); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* ── Pill list ────────────────────────────────────────────────────── */
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .pill {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--ink2);
+    }
+
+    /* ── Section divider ──────────────────────────────────────────────── */
+    .section-line {
+      width: 40px; height: 3px;
+      border-radius: 2px;
+      background: var(--pearl-s);
+      margin: 20px 0;
+    }
+
+    /* ── Slide 1 — title ──────────────────────────────────────────────── */
+    #slide-1 {
+      background: radial-gradient(ellipse 80% 60% at 60% 40%, rgba(249,115,22,.07) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 50% at 20% 80%, rgba(167,139,250,.06) 0%, transparent 60%),
+                  var(--bg);
+    }
+
+    .title-pearl-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      background: var(--pearl-s);
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 28px;
+    }
+
+    /* ── Slide 3 — arch diagram ───────────────────────────────────────── */
+    .arch-diagram {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 4px;
+    }
+    .arch-layer {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .arch-layer::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+    }
+    .arch-layer.edge::before   { background: var(--orange); }
+    .arch-layer.data::before   { background: var(--blue); }
+    .arch-layer.front::before  { background: var(--green); }
+    .arch-layer.deploy::before { background: var(--purple); }
+
+    .arch-layer .layer-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .arch-layer.edge   .layer-title { color: var(--orange); }
+    .arch-layer.data   .layer-title { color: var(--blue); }
+    .arch-layer.front  .layer-title { color: var(--green); }
+    .arch-layer.deploy .layer-title { color: var(--purple); }
+
+    .arch-item {
+      font-size: 12.5px;
+      color: var(--ink2);
+      padding: 5px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .arch-item::before {
+      content: '▸';
+      font-size: 9px;
+      color: var(--ink3);
+    }
+
+    /* ── List items ───────────────────────────────────────────────────── */
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .item-list li {
+      font-size: 13px;
+      color: var(--ink2);
+      padding: 10px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .item-list li .bullet {
+      color: var(--orange);
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .item-list li strong { color: var(--ink); }
+
+    /* ── Two-column layout ────────────────────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .two-col-wide {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* ── Highlight box ────────────────────────────────────────────────── */
+    .highlight-box {
+      background: rgba(249,115,22,.07);
+      border: 1px solid rgba(249,115,22,.2);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 12.5px;
+      color: var(--ink2);
+      line-height: 1.65;
+    }
+    .highlight-box strong { color: #fb923c; }
+
+    .highlight-box.blue {
+      background: rgba(56,189,248,.07);
+      border-color: rgba(56,189,248,.2);
+    }
+    .highlight-box.blue strong { color: #38bdf8; }
+
+    .highlight-box.green {
+      background: rgba(52,211,153,.07);
+      border-color: rgba(52,211,153,.2);
+    }
+    .highlight-box.green strong { color: #34d399; }
+
+    /* ── Spacing utilities ────────────────────────────────────────────── */
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-20 { margin-top: 20px; }
+    .gap-12 { gap: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div id="progress-bar"></div>
+
+<!-- Slide counter -->
+<div id="slide-counter">01 / 10</div>
+
+<!-- ─────────────────────────── SLIDES ─────────────────────────────── -->
+<div id="slides">
+
+  <!-- ── Slide 1: Title ─────────────────────────────────────────────── -->
+  <section class="slide active" id="slide-1">
+    <div class="title-pearl-logo">P</div>
+    <div class="slide-tag">PRL GPU Mining Tool</div>
+    <h1>
+      <span class="gradient-text">PearlRate</span>
+    </h1>
+    <p class="subtitle">
+      Break-even rental &amp; mining profitability calculator dla kart NVIDIA GPU kopią<strong style="color:var(--ink)"> Pearl (PRL)</strong> — warstwy L1 blockchain minowanej na GPU.<br/><br/>
+      Pozwala w czasie rzeczywistym obliczać progi opłacalności najmu kart oraz zysk z self-miningu dla 8 architektur GPU (Blackwell, Ada, Ampere).
+    </p>
+    <div class="section-line"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+      <span class="badge badge-orange">Cloudflare Pages</span>
+      <span class="badge badge-blue">KV + D1</span>
+      <span class="badge badge-green">Zero npm deps</span>
+      <span class="badge badge-purple">Edge Serverless</span>
+      <span class="badge badge-pink">Open Source</span>
+    </div>
+  </section>
+
+  <!-- ── Slide 2: Project Overview ──────────────────────────────────── -->
+  <section class="slide" id="slide-2">
+    <div class="slide-tag">Przegląd projektu</div>
+    <h2>Co rozwiązuje PearlRate?</h2>
+    <div class="two-col">
+      <div>
+        <ul class="item-list">
+          <li><span class="bullet">01</span>
+            <span><strong>Niepewność cenowa najmu GPU</strong> — kalkulator oblicza maksymalny próg opłacalności <code style="color:var(--blue)">be = grossH * (1 - fee)</code> dla każdej karty, uwzględniając trudność sieci i prąd.</span>
+          </li>
+          <li><span class="bullet">02</span>
+            <span><strong>Nieaktualne dane o cenie PRL</strong> — automatyczna aktualizacja co 5 minut z DexScreener, GeckoTerminal i CoinGecko przez Worker Cron.</span>
+          </li>
+          <li><span class="bullet">03</span>
+            <span><strong>Brak porównania GPU</strong> — tabela dla 8 kart (RTX 5090 → RTX 3060) z edytowalnymi wydajnościami <code style="color:var(--blue)">yields</code> i ilościami <code style="color:var(--blue)">qty</code>.</span>
+          </li>
+          <li><span class="bullet">04</span>
+            <span><strong>Historyczny trend cen</strong> — wykres SVG z pobieraniem historii przez endpoint <code style="color:var(--blue)">/api/history?range=7d</code> z D1.</span>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title">Główne moduły</div>
+          <div class="arch-item"><code style="color:var(--orange)">index.html</code> — SPA kalkulator</div>
+          <div class="arch-item"><code style="color:var(--blue)">functions/api/price.js</code> — GET/POST cena</div>
+          <div class="arch-item"><code style="color:var(--blue)">functions/api/history.js</code> — historia z D1</div>
+          <div class="arch-item"><code style="color:var(--purple)">worker/price-cron.js</code> — cron 5 min</div>
+          <div class="arch-item"><code style="color:var(--green)">scripts/update-prl-price.sh</code> — lokalne</div>
+        </div>
+        <div class="highlight-box">
+          <strong>Stan aplikacji</strong> jest persystowany w <code>localStorage</code> pod kluczem <code>pearlrate:state</code> i odtwarzany przy przeładowaniu.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 3: Architecture ───────────────────────────────────────── -->
+  <section class="slide" id="slide-3">
+    <div class="slide-tag">Architektura systemu</div>
+    <h2>Serverless Edge Architecture</h2>
+    <div class="arch-diagram">
+      <div class="arch-layer edge">
+        <div class="layer-title">⚡ Edge Computing</div>
+        <div class="arch-item"><strong>Cloudflare Pages Functions</strong></div>
+        <div class="arch-item">Worker: <code>pearlrate-price-cron</code></div>
+        <div class="arch-item">Cron: <code>*/5 * * * *</code></div>
+        <div class="arch-item">Compatibility: <code>2025-05-29</code></div>
+      </div>
+      <div class="arch-layer data">
+        <div class="layer-title">💾 Data Layer</div>
+        <div class="arch-item">KV binding: <strong>PRICE_KV</strong></div>
+        <div class="arch-item">D1 binding: <strong>PRICE_DB</strong></div>
+        <div class="arch-item">DB name: <code>pearlrate-history</code></div>
+        <div class="arch-item">Tabela SQL: <code>prl_price</code></div>
+      </div>
+      <div class="arch-layer front">
+        <div class="layer-title">🖥️ Frontend</div>
+        <div class="arch-item">Single HTML file (zero build)</div>
+        <div class="arch-item">Fonty: Bricolage Grotesque + IBM Plex Mono</div>
+        <div class="arch-item">Wykresy: SVG generowany w JS</div>
+        <div class="arch-item">State: localStorage <code>pearlrate:state</code></div>
+      </div>
+      <div class="arch-layer deploy">
+        <div class="layer-title">🚀 Deployment</div>
+        <div class="arch-item">Cloudflare Pages (auto-deploy)</div>
+        <div class="arch-item">Build output dir: <code>.</code> (root)</div>
+        <div class="arch-item">Nagłówki: plik <code>_headers</code></div>
+        <div class="arch-item">Brak CI/CD — deploy na push</div>
+      </div>
+    </div>
+    <div class="mt-16">
+      <div class="flow">
+        <div class="flow-step"><strong>Browser</strong></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>Cloudflare CDN</strong> (edge)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>Pages Function</strong> /api/*</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>KV</strong> / <strong>D1</strong></div>
+        <div class="flow-arrow">↩</div>
+        <div class="flow-step"><strong>JSON response</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 4: Frontend ───────────────────────────────────────────── -->
+  <section class="slide" id="slide-4">
+    <div class="slide-tag">Frontend / Interfejs</div>
+    <h2>Zero-Dependency SPA</h2>
+    <div class="two-col">
+      <div>
+        <div class="code-block">
+<span class="cmt">// State object – persisted to localStorage</span>
+<span class="var">S</span> = {
+  <span class="var">price</span>: <span class="num">1.45</span>,   <span class="cmt">// PRL/USDT (live)</span>
+  <span class="var">diff</span>:  <span class="num">1.00</span>,   <span class="cmt">// network difficulty</span>
+  <span class="var">elec</span>:  <span class="num">0.10</span>,   <span class="cmt">// $/kWh electricity</span>
+  <span class="var">fee</span>:   <span class="num">4</span>,      <span class="cmt">// pool fee %</span>
+  <span class="var">qty</span>:   { <span class="str">'5090'</span>: <span class="num">2</span>, <span class="str">'4090'</span>: <span class="num">0</span>, ... },
+  <span class="var">yields</span>:{ <span class="str">'5090'</span>: <span class="num">33.14</span>, ... }
+}
+
+<span class="cmt">// Break-even formula (price.js)</span>
+<span class="var">eff</span>     = <span class="fn">baseYield</span>(c) / D
+<span class="var">grossH</span>  = (eff * P) / <span class="num">24</span>
+<span class="var">be</span>      = grossH * (<span class="num">1</span> - F)   <span class="cmt">// $/h ceiling</span>
+<span class="var">elecDay</span> = (c.power/<span class="num">1000</span>) * <span class="num">24</span> * E
+<span class="var">net</span>     = grossDay - elecDay</div>
+
+        <div class="highlight-box mt-12">
+          <strong>Edytowalność inline:</strong> double-click na komórce yield otwiera pole edycji, zapis przez <code>Enter</code> lub <code>blur</code>, persystowany do <code>S.yields[id]</code>.
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Technologie UI</div>
+          <div class="arch-item">HTML5 (semantic elements)</div>
+          <div class="arch-item">CSS Custom Properties (<code>--pearl</code>, <code>--bg</code>)</div>
+          <div class="arch-item">CSS Grid – 4 kolumny dla kontrolek</div>
+          <div class="arch-item">SVG path drawing dla wykresu</div>
+          <div class="arch-item">Fetch API + AbortController (6s/8s timeout)</div>
+          <div class="arch-item">Ciemny/jasny motyw (<code>data-theme</code>)</div>
+        </div>
+        <div class="card mt-12">
+          <div class="card-title">GPU Cards (DEFAULT_CARDS)</div>
+          <table class="data-table" style="margin-top:4px;">
+            <tr><th>ID</th><th>Yield</th><th>Power</th></tr>
+            <tr><td><strong>5090</strong></td><td>33.14 PRL/d</td><td>510 W</td></tr>
+            <tr><td><strong>4090</strong></td><td>24.00 PRL/d</td><td>430 W</td></tr>
+            <tr><td><strong>5080</strong></td><td>19.78 PRL/d</td><td>358 W</td></tr>
+            <tr><td><strong>3090</strong></td><td>11.72 PRL/d</td><td>320 W</td></tr>
+            <tr><td><strong>3060</strong></td><td>4.00 PRL/d</td><td>160 W</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 5: Cloudflare Workers ────────────────────────────────── -->
+  <section class="slide" id="slide-5">
+    <div class="slide-tag">Cloudflare Workers</div>
+    <h2>Edge Logic — Pages Functions &amp; Cron Worker</h2>
+    <div class="two-col">
+      <div>
+        <div class="code-block" style="font-size:11.5px;">
+<span class="cmt">// worker/wrangler.toml</span>
+name = <span class="str">"pearlrate-price-cron"</span>
+main = <span class="str">"price-cron.js"</span>
+compatibility_date = <span class="str">"2025-05-29"</span>
+
+[triggers]
+crons = [<span class="str">"*/5 * * * *"</span>]   <span class="cmt">// co 5 minut</span>
+
+<span class="cmt">// Fallback chain w price-cron.js</span>
+sources = [
+  fromDexScreener,   <span class="cmt">// 0x07696dcab55e62cfef953666b29fe1970518cb00</span>
+  fromGeckoTerminal, <span class="cmt">// network: "eth"</span>
+  fromCoinGecko      <span class="cmt">// coin-id: "wrapped-pearl"</span>
+]</div>
+
+        <div class="code-block mt-12" style="font-size:11.5px;">
+<span class="cmt">// functions/api/price.js — GET /api/price</span>
+<span class="kw">export async function</span> <span class="fn">onRequestGet</span>(ctx) {
+  <span class="kw">const</span> raw = <span class="kw">await</span> ctx.env.<span class="var">PRICE_KV</span>
+    .<span class="fn">get</span>(<span class="str">"prl_price"</span>)
+  <span class="kw">if</span> (!raw) <span class="kw">return</span> <span class="fn">json</span>({error:<span class="str">"no price"</span>}, <span class="num">404</span>)
+  <span class="kw">return</span> <span class="fn">json</span>(<span class="fn">JSON.parse</span>(raw), {
+    headers: { <span class="str">"Cache-Control"</span>: <span class="str">"no-store"</span> }
+  })
+}</div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Endpointy Pages Functions</div>
+          <table class="data-table">
+            <tr><th>Metoda</th><th>Ścieżka</th><th>Auth</th></tr>
+            <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/price</code></td><td>—</td></tr>
+            <tr><td><span class="badge badge-orange">POST</span></td><td><code>/api/price</code></td><td>Bearer token</td></tr>
+            <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/history</code></td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="card mt-12">
+          <div class="card-title">POST /api/price — Autoryzacja</div>
+          <div class="card-body">
+            Header: <code>Authorization: Bearer &lt;token&gt;</code><br/>
+            Secret: <code>PRICE_TOKEN</code> (env var)<br/>
+            Regex: <code>/^Bearer\s+/i</code><br/>
+            Błąd: <code>401 {"error":"unauthorized"}</code>
+          </div>
+        </div>
+        <div class="highlight-box mt-12">
+          <strong>Zarówno Pages jak i Worker</strong> współdzielą te same bindingi — <code>PRICE_KV</code> i <code>PRICE_DB</code> wskazują na te same zasoby.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 6: Database & Storage ────────────────────────────────── -->
+  <section class="slide" id="slide-6">
+    <div class="slide-tag">Baza danych i Storage</div>
+    <h2>Cloudflare KV + D1</h2>
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-title" style="color:var(--orange);">⚡ KV — Najnowsza Cena</div>
+          <div class="card-body">
+            Binding: <strong>PRICE_KV</strong><br/>
+            ID: <code style="font-size:11px;">cb93529a1f724c3a9e104350bd7c8a63</code><br/><br/>
+            Klucz: <code>"prl_price"</code><br/>
+            Wartość (JSON):
+          </div>
+          <div class="code-block mt-8">
+{
+  <span class="var">"price"</span>: <span class="num">1.45</span>,
+  <span class="var">"ts"</span>:    <span class="num">1716998400000</span>,
+  <span class="var">"source"</span>: <span class="str">"dexscreener:wprl-ethereum"</span>
+}</div>
+          <div class="card-body" style="margin-top:10px;">
+            <strong>Cel:</strong> minimalne opóźnienie odczytu (edge cache), brak kosztów D1 dla najczęstszego zapytania.
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title" style="color:var(--blue);">🗄️ D1 — Historia Cen</div>
+          <div class="card-body">
+            Binding: <strong>PRICE_DB</strong><br/>
+            DB name: <code>pearlrate-history</code><br/>
+            ID: <code style="font-size:10.5px;">733d5091-4c91-48d3-b1d8-c1488f9121f0</code>
+          </div>
+          <div class="code-block mt-8">
+<span class="kw">CREATE TABLE</span> prl_price (
+  id    INTEGER <span class="kw">PRIMARY KEY</span> AUTOINCREMENT,
+  ts    INTEGER <span class="kw">NOT NULL</span>,   <span class="cmt">-- ms epoch</span>
+  price REAL    <span class="kw">NOT NULL</span>,   <span class="cmt">-- USD/USDT</span>
+  source TEXT               <span class="cmt">-- "dexscreener:..."</span>
+);</div>
+          <div class="card-body" style="margin-top:10px;">
+            Downsampling do <strong>300 punktów</strong> (<code>TARGET_POINTS</code>) przez uśrednianie w buckietach czasowych.
+          </div>
+        </div>
+        <div class="code-block mt-12" style="font-size:11.5px;">
+<span class="cmt">// GET /api/history?range=24h|7d|30d|all</span>
+<span class="kw">const</span> since = Date.now() - <span class="num">7</span>*<span class="num">24</span>*<span class="num">3600</span>*<span class="num">1000</span>
+<span class="kw">const</span> rows = <span class="kw">await</span> env.<span class="var">PRICE_DB</span>
+  .<span class="fn">prepare</span>(<span class="str">"SELECT ts,price FROM prl_price WHERE ts>? ORDER BY ts"</span>)
+  .<span class="fn">bind</span>(since).<span class="fn">all</span>()</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 7: Data Flow ──────────────────────────────────────────── -->
+  <section class="slide" id="slide-7">
+    <div class="slide-tag">Zależności i przepływ danych</div>
+    <h2>Request Lifecycle — Krok po Kroku</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div class="card-title" style="margin-bottom:12px;">🔄 Przepływ aktualizacji ceny</div>
+        <ul class="item-list">
+          <li><span class="bullet">1</span><span><strong>Worker Cron</strong> wyzwalany co <code>*/5 * * * *</code> przez Cloudflare Triggers</span></li>
+          <li><span class="bullet">2</span><span>Próba fetch z <strong>DexScreener</strong> (token: <code>0x07696d...cb00</code> na <code>ethereum</code>)</span></li>
+          <li><span class="bullet">3</span><span>Fallback → <strong>GeckoTerminal</strong> (<code>network: "eth"</code>), fallback → <strong>CoinGecko</strong> (<code>"wrapped-pearl"</code>)</span></li>
+          <li><span class="bullet">4</span><span>Zapis do <strong>KV</strong> (klucz <code>"prl_price"</code>) i <strong>D1</strong> INSERT (<code>prl_price</code>)</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="card-title" style="margin-bottom:12px;">🌐 Przepływ żądania użytkownika</div>
+        <ul class="item-list">
+          <li><span class="bullet">1</span><span>Browser ładuje <code>index.html</code> z CDN (Cloudflare Pages)</span></li>
+          <li><span class="bullet">2</span><span>JS wykonuje <code>GET /api/price</code> z timeoutem <strong>6 sekund</strong> (AbortController)</span></li>
+          <li><span class="bullet">3</span><span>Pages Function czyta KV → zwraca <code>{"price","ts","source"}</code>, nagłówek <code>Cache-Control: no-store</code></span></li>
+          <li><span class="bullet">4</span><span>JS wywołuje <code>applyLivePrice(p)</code> → aktualizuje <code>S.price</code> i przebudowuje UI przez <code>compute()</code></span></li>
+          <li><span class="bullet">5</span><span>Wykres: <code>GET /api/history?range=7d</code> → D1 query → downsampling → SVG <code>drawChart()</code></span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-16">
+      <div class="flow" style="flex-wrap:wrap;gap:0;">
+        <div class="flow-step">Mac mini<br/><small style="color:var(--ink3)">bash script</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>POST /api/price</strong><br/><small style="color:var(--ink3)">Bearer PRICE_TOKEN</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>price.js</strong><br/><small style="color:var(--ink3)">Pages Function</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><strong>KV</strong> write<br/><small style="color:var(--ink3)">prl_price</small></div>
+        <div class="flow-step" style="border-left:none;border-top-left-radius:0;border-bottom-left-radius:0;">+<strong>D1</strong> INSERT<br/><small style="color:var(--ink3)">prl_price table</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 8: Dependencies & Integrations ───────────────────────── -->
+  <section class="slide" id="slide-8">
+    <div class="slide-tag">Zależności i integracje</div>
+    <h2>Kluczowe Biblioteki i Zewnętrzne API</h2>
+    <div class="two-col">
+      <div>
+        <div class="card-title" style="margin-bottom:10px;">📦 Zależności projektu</div>
+        <div class="highlight-box green" style="margin-bottom:14px;">
+          <strong>Brak package.json</strong> — projekt nie ma żadnych zależności npm. Uruchamia się bezpośrednio jako statyczny HTML bez żadnego procesu budowania.
+        </div>
+        <div class="card">
+          <div class="card-title">Natywne API przeglądarki</div>
+          <div class="arch-item"><code style="color:var(--orange)">fetch()</code> + AbortController — pobieranie cen</div>
+          <div class="arch-item"><code style="color:var(--orange)">localStorage</code> — stan <code>pearlrate:state</code></div>
+          <div class="arch-item"><code style="color:var(--orange)">SVGElement</code> — wykres bez bibliotek</div>
+          <div class="arch-item"><code style="color:var(--orange)">CSS Custom Properties</code> — theming</div>
+        </div>
+        <div class="card mt-12">
+          <div class="card-title">Google Fonts (CDN)</div>
+          <div class="arch-item">Bricolage Grotesque (400, 600, 800)</div>
+          <div class="arch-item">IBM Plex Mono (400, 500, 600)</div>
+        </div>
+      </div>
+      <div>
+        <div class="card-title" style="margin-bottom:10px;">🌐 Zewnętrzne API cenowe</div>
+        <table class="data-table">
+          <tr><th>#</th><th>Źródło</th><th>Identyfikator</th><th>API Key</th></tr>
+          <tr>
+            <td><strong>1</strong></td>
+            <td>DexScreener</td>
+            <td><code style="font-size:10px;">0x07696d...cb00</code></td>
+            <td><span class="badge badge-green">nie</span></td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td>GeckoTerminal</td>
+            <td><code>network: "eth"</code></td>
+            <td><span class="badge badge-green">nie</span></td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td>CoinGecko</td>
+            <td><code>"wrapped-pearl"</code></td>
+            <td><span class="badge badge-orange">opcjonalny</span></td>
+          </tr>
+        </table>
+        <div class="card mt-12">
+          <div class="card-title">Narzędzia deweloperskie</div>
+          <div class="arch-item"><code style="color:var(--purple)">wrangler</code> — Cloudflare CLI (deploy, D1, KV)</div>
+          <div class="arch-item"><code style="color:var(--purple)">scripts/update-prl-price.sh</code> — bash script (Mac mini)</div>
+          <div class="arch-item"><code style="color:var(--purple)">wrangler secret put PRICE_TOKEN</code> — auth</div>
+          <div class="arch-item"><code style="color:var(--purple)">wrangler d1 execute</code> — migracje</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 9: Deployment & CI/CD ────────────────────────────────── -->
+  <section class="slide" id="slide-9">
+    <div class="slide-tag">Wdrożenie i CI/CD</div>
+    <h2>Deploy na Cloudflare Pages</h2>
+    <div class="two-col-wide">
+      <div>
+        <div class="code-block" style="font-size:11.5px;">
+<span class="cmt"># wrangler.toml — Cloudflare Pages</span>
+name = <span class="str">"pearlrate"</span>
+pages_build_output_dir = <span class="str">"."</span>   <span class="cmt"># root = output</span>
+compatibility_date = <span class="str">"2025-05-29"</span>
+
+[[kv_namespaces]]
+binding  = <span class="str">"PRICE_KV"</span>
+id       = <span class="str">"cb93529a1f724c3a9e104350bd7c8a63"</span>
+
+[[d1_databases]]
+binding       = <span class="str">"PRICE_DB"</span>
+database_name = <span class="str">"pearlrate-history"</span>
+database_id   = <span class="str">"733d5091-4c91-48d3-b1d8-c1488f9121f0"</span>
+
+<span class="cmt"># worker/wrangler.toml — Cron Worker</span>
+name = <span class="str">"pearlrate-price-cron"</span>
+main = <span class="str">"price-cron.js"</span>
+
+[triggers]
+crons = [<span class="str">"*/5 * * * *"</span>]</div>
+
+        <div class="code-block mt-12" style="font-size:11.5px;">
+<span class="cmt"># Konfiguracja sekretów przez Wrangler CLI</span>
+<span class="fn">wrangler</span> secret put <span class="var">PRICE_TOKEN</span>
+<span class="fn">wrangler</span> secret put <span class="var">COINGECKO_API_KEY</span>  <span class="cmt"># opcjonalny</span>
+
+<span class="cmt"># Deploy Pages + Worker</span>
+<span class="fn">wrangler</span> pages deploy .  <span class="cmt"># lub przez git push</span>
+<span class="fn">wrangler</span> deploy           <span class="cmt"># deploy price-cron.js</span>
+
+<span class="cmt"># Security headers (_headers)</span>
+<span class="var">X-Frame-Options</span>: SAMEORIGIN
+<span class="var">X-Content-Type-Options</span>: nosniff
+<span class="var">Cache-Control</span>: public, max-age=0, must-revalidate</div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Środowiska i deploy</div>
+          <ul class="item-list" style="gap:8px;">
+            <li><span class="bullet">→</span><span><strong>Production:</strong> każdy push do gałęzi <code>main</code> triggeruje rebuild Pages</span></li>
+            <li><span class="bullet">→</span><span><strong>Pages output dir:</strong> <code>.</code> (root) — brak procesu budowania</span></li>
+            <li><span class="bullet">→</span><span><strong>Worker deploy:</strong> ręczny przez <code>wrangler deploy</code> w katalogu <code>worker/</code></span></li>
+            <li><span class="bullet">→</span><span><strong>Brak GitHub Actions</strong> — automatyzacja przez natywną integrację git w Cloudflare Pages</span></li>
+          </ul>
+        </div>
+        <div class="highlight-box blue mt-12">
+          <strong>Historia commitów:</strong> 12 commitów od inicjalnego MVP przez dodanie KV (live price), D1 (historia), Cron Worker, po zmianę favicon i sponsoring Vast.ai.
+        </div>
+        <div class="highlight-box mt-12">
+          <strong>.gitignore:</strong> <code>.wrangler/</code>, <code>node_modules/</code>, <code>*.log</code>, <code>.DS_Store</code>, <code>.vercel</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Slide 10: Summary ──────────────────────────────────────────── -->
+  <section class="slide" id="slide-10">
+    <div class="slide-tag">Podsumowanie</div>
+    <h2>Dlaczego ten stack <span class="gradient-text">działa</span> dla PearlRate?</h2>
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="card" style="border-top:2px solid var(--orange);">
+        <div class="card-title" style="color:var(--orange);">⚡ Zero Cold Start</div>
+        <div class="card-body">
+          <strong>Cloudflare Workers</strong> startują w &lt;1 ms na edge. KV reads są globalnie dystrybuowane — brak latencji DB na najpopularniejszy endpoint <code>GET /api/price</code>.
+        </div>
+      </div>
+      <div class="card" style="border-top:2px solid var(--blue);">
+        <div class="card-title" style="color:var(--blue);">💰 Ekstremalnie niski koszt</div>
+        <div class="card-body">
+          <strong>Zero npm, zero bundlera</strong> = zero czasu budowania i zero kosztów serwerowych. Cloudflare Pages free tier obsługuje produkcję. D1 i KV mają hojne free tiers.
+        </div>
+      </div>
+      <div class="card" style="border-top:2px solid var(--green);">
+        <div class="card-title" style="color:var(--green);">🔄 Self-updating</div>
+        <div class="card-body">
+          <strong>Cron Worker</strong> (<code>*/5 * * * *</code>) z 3-poziomowym fallbackiem (DexScreener → GeckoTerminal → CoinGecko) zapewnia dostępność cen bez ręcznej interwencji.
+        </div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="card" style="border-top:2px solid var(--purple);">
+        <div class="card-title" style="color:var(--purple);">🗄️ Odpowiedni storage</div>
+        <div class="card-body">
+          <strong>KV</strong> dla atomic "latest price" (szybkość), <strong>D1 SQLite</strong> dla historycznych serii (analityka). Każde rozwiązanie dopasowane do swojego use-case.
+        </div>
+      </div>
+      <div class="card" style="border-top:2px solid var(--pink);">
+        <div class="card-title" style="color:var(--pink);">📱 Offline-capable</div>
+        <div class="card-body">
+          <strong>localStorage</strong> (<code>pearlrate:state</code>) persystuje cały stan kalkulatora. Aplikacja działa w pełni bez internetu — API to enhancement, nie requirement.
+        </div>
+      </div>
+      <div class="card" style="border-top:2px solid var(--ink2);">
+        <div class="card-title">🚀 Developer Experience</div>
+        <div class="card-body">
+          Jeden plik <code>index.html</code>, brak konfiguracji, deploy przez <code>git push</code>. Nowy deweloper ma działający serwis w minuty przez <code>wrangler pages dev .</code>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /slides -->
+
+<!-- Navigation -->
+<nav id="nav">
+  <button class="nav-btn" id="btn-prev" disabled>← Poprzedni</button>
+  <div id="dot-nav"></div>
+  <button class="nav-btn" id="btn-next">Następny →</button>
+</nav>
+
+<script>
+  const TOTAL = 10;
+  let current = 1;
+
+  const progressBar  = document.getElementById('progress-bar');
+  const slideCounter = document.getElementById('slide-counter');
+  const btnPrev      = document.getElementById('btn-prev');
+  const btnNext      = document.getElementById('btn-next');
+  const dotNav       = document.getElementById('dot-nav');
+
+  // Build dots
+  for (let i = 1; i <= TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotNav.appendChild(d);
+  }
+
+  function goTo(n) {
+    if (n < 1 || n > TOTAL) return;
+
+    const prev = document.getElementById(`slide-${current}`);
+    const next = document.getElementById(`slide-${n}`);
+
+    const goingForward = n > current;
+
+    prev.classList.remove('active');
+    prev.classList.add(goingForward ? 'out-left' : '');
+    // Reset old slide after transition
+    setTimeout(() => { prev.classList.remove('out-left'); }, 380);
+
+    next.style.transform = goingForward ? 'translateX(40px)' : 'translateX(-40px)';
+    next.style.opacity = '0';
+    next.classList.add('active');
+    // Force reflow
+    next.getBoundingClientRect();
+    next.style.transform = '';
+    next.style.opacity = '';
+
+    current = n;
+    update();
+  }
+
+  function update() {
+    // Progress bar
+    progressBar.style.width = `${(current / TOTAL) * 100}%`;
+    // Counter
+    slideCounter.textContent = `${String(current).padStart(2,'0')} / ${TOTAL}`;
+    // Dots
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i + 1 === current);
+    });
+    // Buttons
+    btnPrev.disabled = current === 1;
+    btnNext.disabled = current === TOTAL;
+  }
+
+  btnPrev.addEventListener('click', () => goTo(current - 1));
+  btnNext.addEventListener('click', () => goTo(current + 1));
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      goTo(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      goTo(current - 1);
+    }
+  });
+
+  // Touch/swipe support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) goTo(dx < 0 ? current + 1 : current - 1);
+  }, { passive: true });
+
+  update();
+</script>
+</body>
+</html>
