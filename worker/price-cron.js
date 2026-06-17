@@ -27,13 +27,22 @@
 //   COINGECKO_API_KEY   demo key, sent as x-cg-demo-api-key
 
 const KV_KEY = "prl_price";
+const DIFF_KV_KEY = "prl_diff";
 const DEFAULT_TOKEN = "0x07696dcab55e62cfef953666b29fe1970518cb00"; // WPRL / Ethereum
 const DEFAULT_DEX_CHAIN = "ethereum";
 const DEFAULT_GT_NETWORK = "eth";
 const DEFAULT_COIN_ID = "wrapped-pearl";
 
+// --- network-difficulty source (AlphaPool miningcore /api/pools) ---
+const DEFAULT_DIFF_URL = "https://pearl.alphapool.tech/api/pools";
+// Network difficulty on 26 May 2026 = the page's ×1.00 baseline. ESTIMATE
+// (~18.1M @ ~25.7 EH/s vs ~3.56 EH/s at launch → ≈2.5M). Override with the
+// BASELINE_DIFFICULTY var once the exact 26 May 2026 value is confirmed.
+const DEFAULT_BASELINE_DIFFICULTY = 2500000;
+
 const JSON_HEADERS = { accept: "application/json" };
 const sane = (p) => isFinite(p) && p > 0 && p <= 1e6;
+const saneMult = (m) => isFinite(m) && m > 0 && m <= 100;
 
 // 1. DexScreener — pick the most-liquid pair on the target chain.
 async function fromDexScreener(env) {
@@ -133,6 +142,36 @@ async function updatePrice(env) {
   return record;
 }
 
+// --- network difficulty multiplier (relative to 26 May 2026) ---
+// AlphaPool runs miningcore; /api/pools -> pools[].networkStats.networkDifficulty.
+// Tolerates {"pools":[...]} or a bare [...] array, and an optional PRL_POOL_ID.
+async function fromAlphaPool(env) {
+  const url = env.DIFFICULTY_URL || DEFAULT_DIFF_URL;
+  const res = await fetch(url, { headers: JSON_HEADERS, cf: { cacheTtl: 0 } });
+  if (!res.ok) throw new Error("alphapool http " + res.status);
+  const data = await res.json();
+  const pools = Array.isArray(data) ? data : (data && data.pools) || [];
+  const pool = env.PRL_POOL_ID
+    ? pools.find((p) => p && p.id === env.PRL_POOL_ID)
+    : pools[0];
+  const difficulty = Number(pool && pool.networkStats && pool.networkStats.networkDifficulty);
+  if (!isFinite(difficulty) || difficulty <= 0) throw new Error("alphapool: no sane difficulty");
+  return { difficulty, source: "alphapool:miningcore" };
+}
+
+async function updateDifficulty(env) {
+  const baseline = Number(env.BASELINE_DIFFICULTY) > 0
+    ? Number(env.BASELINE_DIFFICULTY)
+    : DEFAULT_BASELINE_DIFFICULTY;
+  const { difficulty, source } = await fromAlphaPool(env);
+  const mult = Math.round((difficulty / baseline) * 100) / 100;
+  if (!saneMult(mult)) throw new Error("computed insane multiplier: " + mult);
+
+  const record = { mult, difficulty, baseline, ts: Date.now(), source };
+  await env.PRICE_KV.put(DIFF_KV_KEY, JSON.stringify(record));
+  return record;
+}
+
 export default {
   // Cron Trigger entry point.
   async scheduled(event, env, ctx) {
@@ -140,6 +179,12 @@ export default {
       updatePrice(env)
         .then((r) => console.log("updated PRL price:", JSON.stringify(r)))
         .catch((e) => console.error("price update failed:", e && e.message))
+    );
+    // Difficulty is best-effort and independent — its failure must not affect price.
+    ctx.waitUntil(
+      updateDifficulty(env)
+        .then((r) => console.log("updated PRL difficulty:", JSON.stringify(r)))
+        .catch((e) => console.error("difficulty update failed:", e && e.message))
     );
   },
 
@@ -151,6 +196,14 @@ export default {
     if (url.searchParams.get("run") === "1") {
       try {
         const record = await updatePrice(env);
+        return Response.json(record);
+      } catch (e) {
+        return Response.json({ error: String((e && e.message) || e) }, { status: 502 });
+      }
+    }
+    if (url.searchParams.get("diff") === "1") {
+      try {
+        const record = await updateDifficulty(env);
         return Response.json(record);
       } catch (e) {
         return Response.json({ error: String((e && e.message) || e) }, { status: 502 });

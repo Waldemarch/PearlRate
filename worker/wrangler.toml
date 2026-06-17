@@ -11,8 +11,11 @@
 #   curl "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?run=1"
 #
 # Optional vars (set with `wrangler secret put NAME` or in the dashboard):
-#   COINGECKO_API_KEY   demo key for higher CoinGecko rate limits
-#   PRL_COINGECKO_ID    override the coin id (default wrapped-pearl)
+#   COINGECKO_API_KEY    demo key for higher CoinGecko rate limits
+#   PRL_COINGECKO_ID     override the coin id (default wrapped-pearl)
+#   BASELINE_DIFFICULTY  network difficulty on 26 May 2026 (difficulty ×1.00 baseline)
+#   DIFFICULTY_URL       miningcore /api/pools URL (default AlphaPool)
+#   PRL_POOL_ID          pick a specific pool id from the /api/pools array
 
 name = "pearlrate-price-cron"
 main = "price-cron.js"
