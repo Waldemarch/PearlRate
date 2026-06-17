@@ -130,3 +130,89 @@ the **API**, not the browser window — so no open tab is needed:
 If CoinGecko ever rate-limits or drops the `wrapped-pearl` listing, tell me and
 I'll point the script at another source (or wrap the fetch in the Cloudflare
 Worker on a Cron Trigger, which removes the Mac mini entirely).
+
+---
+
+# Automating the network difficulty ×
+
+The "Network difficulty ×" control is the same idea as the price: a live value
+fetched on a schedule and served to the page. It's a **multiplier relative to
+26 May 2026** (the baseline the GPU yields were measured at):
+
+```
+mult = current network difficulty / baseline difficulty (26 May 2026)
+```
+
+Block time is ~constant, so difficulty tracks hashrate — this is exactly the
+"**2× hashrate → half yield**" factor the calculator divides every yield by.
+
+It reuses the existing plumbing — the **same** `PRICE_KV` namespace (under key
+`prl_diff`) and the **same** `PRICE_TOKEN` secret — so no new Cloudflare setup
+is needed. The page reads `/api/difficulty` on load:
+
+```
+ updater (every N min)                   Cloudflare Pages
+ ┌───────────────────────────┐  POST /api/difficulty  ┌────────────────────────┐
+ │ update-prl-difficulty.sh  │ ─────────────────────▶ │ functions/api/difficulty│──▶ KV (prl_diff)
+ │  miningcore /api/pools     │   Bearer PRICE_TOKEN   │   GET reads KV ◀────────┼──── index.html fetch()
+ └───────────────────────────┘                        └────────────────────────┘
+```
+
+## Source: AlphaPool (miningcore)
+
+`https://pearl.alphapool.tech` runs the standard **miningcore** frontend, whose
+JSON API at `/api/pools` exposes `pools[].networkStats.networkDifficulty`.
+
+> The public PRL explorers (prlscan, mineaitokens, hashrate.no, kryptex) sit
+> behind a WAF that returns `HTTP 403` to datacenter IPs — same story as
+> CoinGecko for the price. So the **residential Mac mini** is the reliable
+> fetcher. The Cron Worker also tries AlphaPool (below); use whichever reaches.
+
+## ⚠️ Set the baseline difficulty
+
+The one value you must confirm is `BASELINE_DIFFICULTY` — the network difficulty
+on **26 May 2026** (the ×1.00 point). The scripts default to an **estimate**
+(`2,500,000`: ~18.1M difficulty at ~25.7 EH/s in Jun 2026 vs ~3.56 EH/s at
+launch). If it's off, every yield is off by a constant factor, so plug in the
+real 26 May 2026 difficulty once you have it (set `BASELINE_DIFFICULTY=...`).
+
+## Mac mini updater
+
+`scripts/update-prl-difficulty.sh` mirrors the price script. Dry-run it with no
+token and no Cloudflare:
+
+```bash
+DIFFICULTY_DRYRUN=1 ./scripts/update-prl-difficulty.sh
+# -> {"mult":7.24,"difficulty":18098085,"baseline":2500000,"source":"alphapool:miningcore","dryrun":true}
+```
+
+Live (POSTs the multiplier):
+
+```bash
+export PEARLRATE_URL="https://pearlrate.dcnb.eu"
+export PRICE_TOKEN="<the same secret you set on Cloudflare>"
+export BASELINE_DIFFICULTY=2500000     # <-- set the confirmed 26 May 2026 value
+./scripts/update-prl-difficulty.sh
+```
+
+Schedule it exactly like the price (a second launchd plist, e.g.
+`biz.chrobok.pearlrate-difficulty`, pointing at this script — difficulty moves
+slowly, so a longer `StartInterval` such as 3600s is plenty). Tunables:
+`DIFFICULTY_URL`, `PRL_POOL_ID` (pick a pool from the array), `BASELINE_DIFFICULTY`.
+
+## Cron Worker (hands-free alternative)
+
+`worker/price-cron.js` now also updates difficulty in the same scheduled run
+(best-effort and fully independent — a difficulty failure never affects the
+price write). It writes the same `prl_diff` KV key the Pages Function serves.
+Optional vars on the Worker: `BASELINE_DIFFICULTY`, `DIFFICULTY_URL`, `PRL_POOL_ID`.
+
+Test after deploy (forces one difficulty update immediately):
+
+```bash
+curl "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?diff=1"
+# -> {"mult":7.24,"difficulty":18098085,"baseline":2500000,...}
+```
+
+Until the first push, the page just keeps its manual ×1.00 default (the slider
+still works as an override).
