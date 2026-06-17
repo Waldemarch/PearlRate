@@ -137,10 +137,11 @@ Worker on a Cron Trigger, which removes the Mac mini entirely).
 
 The "Network difficulty ×" control is the same idea as the price: a live value
 fetched on a schedule and served to the page. It's a **multiplier relative to
-26 May 2026** (the baseline the GPU yields were measured at):
+the current baseline difficulty** — the ×1.00 point the table yields are stated
+at (`18,098,085`, 17 Jun 2026):
 
 ```
-mult = current network difficulty / baseline difficulty (26 May 2026)
+mult = current network difficulty / baseline difficulty
 ```
 
 Block time is ~constant, so difficulty tracks hashrate — this is exactly the
@@ -168,13 +169,13 @@ JSON API at `/api/pools` exposes `pools[].networkStats.networkDifficulty`.
 > CoinGecko for the price. So the **residential Mac mini** is the reliable
 > fetcher. The Cron Worker also tries AlphaPool (below); use whichever reaches.
 
-## ⚠️ Set the baseline difficulty
+## Baseline difficulty
 
-The one value you must confirm is `BASELINE_DIFFICULTY` — the network difficulty
-on **26 May 2026** (the ×1.00 point). The scripts default to an **estimate**
-(`2,500,000`: ~18.1M difficulty at ~25.7 EH/s in Jun 2026 vs ~3.56 EH/s at
-launch). If it's off, every yield is off by a constant factor, so plug in the
-real 26 May 2026 difficulty once you have it (set `BASELINE_DIFFICULTY=...`).
+`BASELINE_DIFFICULTY` is the ×1.00 point — the difficulty the table yields are
+stated at. It's anchored to the **confirmed current value `18,098,085`
+(17 Jun 2026)**, so the live multiplier reads ≈×1.00 today and climbs as the
+network grows. To re-anchor the calculator to a newer snapshot, restate the
+table yields at that difficulty and set `BASELINE_DIFFICULTY=...` to match.
 
 ## Mac mini updater
 
@@ -183,7 +184,7 @@ token and no Cloudflare:
 
 ```bash
 DIFFICULTY_DRYRUN=1 ./scripts/update-prl-difficulty.sh
-# -> {"mult":7.24,"difficulty":18098085,"baseline":2500000,"source":"alphapool:miningcore","dryrun":true}
+# -> {"mult":1.00,"difficulty":18098085,"baseline":18098085,"source":"alphapool:miningcore","dryrun":true}
 ```
 
 Live (POSTs the multiplier):
@@ -191,7 +192,7 @@ Live (POSTs the multiplier):
 ```bash
 export PEARLRATE_URL="https://pearlrate.dcnb.eu"
 export PRICE_TOKEN="<the same secret you set on Cloudflare>"
-export BASELINE_DIFFICULTY=2500000     # <-- set the confirmed 26 May 2026 value
+export BASELINE_DIFFICULTY=18098085    # <-- current ×1.00 baseline (17 Jun 2026)
 ./scripts/update-prl-difficulty.sh
 ```
 
@@ -211,7 +212,7 @@ Test after deploy (forces one difficulty update immediately):
 
 ```bash
 curl "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?diff=1"
-# -> {"mult":7.24,"difficulty":18098085,"baseline":2500000,...}
+# -> {"mult":1.00,"difficulty":18098085,"baseline":18098085,...}
 ```
 
 Until the first push, the page just keeps its manual ×1.00 default (the slider

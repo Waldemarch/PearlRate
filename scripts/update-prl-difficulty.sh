@@ -4,9 +4,10 @@
 # push the resulting difficulty *multiplier* to PearlRate. Run on the Mac mini
 # on a schedule (launchd / cron / Hermes task), exactly like update-prl-price.sh.
 #
-# The page's "Network difficulty ×" is relative to the 26 May 2026 baseline:
+# The page's "Network difficulty ×" is relative to the current baseline (the
+# ×1.00 point the table yields are stated at):
 #
-#     mult = current network difficulty / baseline difficulty (26 May 2026)
+#     mult = current network difficulty / baseline difficulty
 #
 # Yields divide by this, so 2x difficulty (≈2x hashrate) → half yield.
 #
@@ -20,8 +21,8 @@
 #   PEARLRATE_URL        base URL of the deployed site, e.g. https://pearlrate.dcnb.eu
 #   PRICE_TOKEN          shared secret, identical to the PRICE_TOKEN on the Pages project
 # Tunable:
-#   BASELINE_DIFFICULTY  network difficulty on 26 May 2026 (the ×1.00 baseline).
-#                        DEFAULT BELOW IS AN ESTIMATE — set the confirmed value.
+#   BASELINE_DIFFICULTY  current baseline network difficulty (the ×1.00 point).
+#                        Default is the confirmed 18,098,085 (17 Jun 2026).
 #   DIFFICULTY_URL       miningcore /api/pools URL (default AlphaPool)
 #   PRL_POOL_ID          pick a specific pool id from the pools array (default: first)
 #   DIFFICULTY_DRYRUN=1  only fetch + print, do NOT POST (no token needed)
@@ -31,9 +32,9 @@
 set -euo pipefail
 
 DIFFICULTY_URL="${DIFFICULTY_URL:-https://pearl.alphapool.tech/api/pools}"
-# Estimate: difficulty ~18.1M at ~25.7 EH/s (Jun 2026) vs ~3.56 EH/s at launch
-# (≈26-28 May 2026) → baseline ≈ 18.1M × 3.56/25.7 ≈ 2.5M. CONFIRM AND SET THIS.
-BASELINE_DIFFICULTY="${BASELINE_DIFFICULTY:-2500000}"
+# Current baseline = the difficulty the table yields are stated at.
+# Confirmed 18,098,085 on 17 Jun 2026. Override to re-anchor to a newer snapshot.
+BASELINE_DIFFICULTY="${BASELINE_DIFFICULTY:-18098085}"
 
 if [ -z "${DIFFICULTY_DRYRUN:-}" ]; then
   : "${PEARLRATE_URL:?set PEARLRATE_URL (e.g. https://pearlrate.dcnb.eu)}"
@@ -64,7 +65,7 @@ if [ -z "$difficulty" ]; then
   exit 1
 fi
 
-# mult = current difficulty / baseline difficulty (26 May 2026), rounded to 2dp.
+# mult = current difficulty / baseline difficulty, rounded to 2dp.
 mult="$(awk "BEGIN{printf \"%.2f\", $difficulty / $BASELINE_DIFFICULTY}")"
 if ! awk "BEGIN{exit !($mult > 0)}" 2>/dev/null; then
   echo "update-prl-difficulty: computed non-positive multiplier ($mult)" >&2

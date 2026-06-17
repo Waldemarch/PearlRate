@@ -20,7 +20,7 @@ Yields are editable inline (double-click a yield cell) so you can drop in your o
 
 ## Data baseline
 
-Yields from public hashrate.no benchmarks (26 May 2026). Defaults: PRL = $1.63, difficulty ×1.00, electricity $0.10/kWh, pool fee 4%. The RTX 4090 row is an estimate (no verified PRL benchmark yet) and is flagged `est`.
+Yields from public hashrate.no benchmarks, scaled to the current network difficulty (18,098,085 · 17 Jun 2026) which is the ×1.00 point. Defaults: difficulty ×1.00, electricity $0.10/kWh, pool fee 4%; PRL price is fetched live. The RTX 4090 row is an estimate (no verified PRL benchmark yet) and is flagged `est`.
 
 ## Deploy
 
