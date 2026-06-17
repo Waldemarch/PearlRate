@@ -13,7 +13,7 @@
 # Optional vars (set with `wrangler secret put NAME` or in the dashboard):
 #   COINGECKO_API_KEY    demo key for higher CoinGecko rate limits
 #   PRL_COINGECKO_ID     override the coin id (default wrapped-pearl)
-#   BASELINE_DIFFICULTY  network difficulty on 26 May 2026 (difficulty ×1.00 baseline)
+#   BASELINE_DIFFICULTY  current baseline network difficulty (difficulty ×1.00 point; default 18098085)
 #   DIFFICULTY_URL       miningcore /api/pools URL (default AlphaPool)
 #   PRL_POOL_ID          pick a specific pool id from the /api/pools array
 

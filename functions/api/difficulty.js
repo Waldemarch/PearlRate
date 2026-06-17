@@ -3,8 +3,9 @@
 //   GET  /api/difficulty  -> returns the last stored difficulty multiplier as JSON
 //   POST /api/difficulty  -> stores a new multiplier (requires a bearer token)
 //
-// The "difficulty ×" on the page is relative to the 26 May 2026 baseline:
-//   mult = current network difficulty / baseline difficulty (26 May 2026)
+// The "difficulty ×" on the page is relative to the current baseline difficulty
+// (18,098,085, the ×1.00 point the table yields are stated at):
+//   mult = current network difficulty / baseline difficulty
 // Because block time is ~constant, difficulty tracks hashrate, so this is the
 // same "2× hashrate -> half yield" factor the calculator divides yields by.
 //
@@ -13,7 +14,7 @@
 //   Secret / env var:      PRICE_TOKEN  -> shared secret used by the updater (reused)
 //
 // Stored record shape:
-//   {"mult":7.24,"difficulty":18098085,"baseline":2500000,"ts":1716998400000,"source":"alphapool:miningcore"}
+//   {"mult":1.00,"difficulty":18098085,"baseline":18098085,"ts":1750118400000,"source":"alphapool:miningcore"}
 
 const KEY = "prl_diff";
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };

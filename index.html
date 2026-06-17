@@ -281,7 +281,7 @@
     <div class="ctl">
       <div class="top"><label>Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
       <input type="range" id="diffRange" min="0.25" max="8" step="0.05" value="1.00" />
-      <span class="hint" id="diffHint">Relative to 26 May 2026. 2× hashrate → half yield</span>
+      <span class="hint" id="diffHint">×1.00 = current 18.1M difficulty. 2× hashrate → half yield</span>
     </div>
     <div class="ctl">
       <div class="top"><label>Electricity $/kWh</label><input class="num" id="elecNum" type="number" step="0.01" value="0.10" /></div>
@@ -375,8 +375,8 @@
     <div class="note">
       <h3><span class="dot"></span> Assumptions &amp; caveats</h3>
       <ul>
-        <li>Baseline yields from hashrate.no benchmarks (26 May 2026), Pearl Research Labs PRL — not the Solana "Perle" token.</li>
-        <li><span class="chip chip-verified">Verified*</span> &nbsp;<strong>*</strong> yield measured on a real hashrate.no PRL benchmark (26 May 2026).</li>
+        <li>Yields from hashrate.no PRL benchmarks, scaled to the current network difficulty (18.1M · 17 Jun 2026), Pearl Research Labs PRL — not the Solana "Perle" token.</li>
+        <li><span class="chip chip-verified">Verified*</span> &nbsp;<strong>*</strong> yield from a real hashrate.no PRL benchmark, scaled to current difficulty.</li>
         <li><span class="chip chip-est">Estimated*</span> &nbsp;<strong>*</strong> no verified PRL benchmark — yield scaled from tensor-core throughput and shown <span class="est-yield">(italic, in parentheses)</span>. Double-click any yield cell to override.</li>
         <li>PRL trades on a thin market (SafeTrade) — paper valuations may not clear at size.</li>
         <li>Network difficulty climbs fast (&gt;9 EH/s already). Push the slider up to stress-test.</li>
@@ -395,16 +395,18 @@
 (function(){
   "use strict";
 
-  // Baseline yields (PRL/day) at 26 May 2026 network difficulty, and power draw (W).
+  // Yields (PRL/day) at the current network difficulty (18,098,085 · 17 Jun 2026),
+  // i.e. the ×1.00 point, and power draw (W). Derived from hashrate.no PRL
+  // benchmarks scaled to today's difficulty.
   const DEFAULT_CARDS = [
-    {id:'5090',  name:'RTX 5090',    arch:'Blackwell', yield:33.14, power:510, est:false},
-    {id:'4090',  name:'RTX 4090',    arch:'Ada',       yield:24.00, power:430, est:true },
-    {id:'5080',  name:'RTX 5080',    arch:'Blackwell', yield:19.78, power:358, est:false},
-    {id:'5070ti',name:'RTX 5070 Ti', arch:'Blackwell', yield:16.50, power:285, est:true },
-    {id:'3090',  name:'RTX 3090',    arch:'Ampere',    yield:11.72, power:320, est:false},
-    {id:'5070',  name:'RTX 5070',    arch:'Blackwell', yield:11.30, power:235, est:true },
-    {id:'4060ti',name:'RTX 4060 Ti', arch:'Ada',       yield:6.40,  power:155, est:true },
-    {id:'3060',  name:'RTX 3060',    arch:'Ampere',    yield:4.00,  power:160, est:true },
+    {id:'5090',  name:'RTX 5090',    arch:'Blackwell', yield:4.58, power:510, est:false},
+    {id:'4090',  name:'RTX 4090',    arch:'Ada',       yield:3.32, power:430, est:true },
+    {id:'5080',  name:'RTX 5080',    arch:'Blackwell', yield:2.73, power:358, est:false},
+    {id:'5070ti',name:'RTX 5070 Ti', arch:'Blackwell', yield:2.28, power:285, est:true },
+    {id:'3090',  name:'RTX 3090',    arch:'Ampere',    yield:1.62, power:320, est:false},
+    {id:'5070',  name:'RTX 5070',    arch:'Blackwell', yield:1.56, power:235, est:true },
+    {id:'4060ti',name:'RTX 4060 Ti', arch:'Ada',       yield:0.88, power:155, est:true },
+    {id:'3060',  name:'RTX 3060',    arch:'Ampere',    yield:0.55, power:160, est:true },
   ];
   const DEFAULTS = {price:1.45, diff:1.00, elec:0.10, fee:4};
 
@@ -450,7 +452,7 @@
     rowsEl.querySelectorAll('.yieldcell').forEach(cell=>{
       cell.addEventListener('dblclick',()=>{
         const id=cell.dataset.y, cur=baseYield(DEFAULT_CARDS.find(c=>c.id===id));
-        const v=prompt('Base yield PRL/day for this card (at baseline difficulty):', cur);
+        const v=prompt('Base yield PRL/day for this card (at the current network difficulty):', cur);
         if(v!==null){ const n=parseFloat(v); if(isFinite(n)&&n>=0){ S.yields[id]=n; persist(); compute(); } }
       });
     });
@@ -588,7 +590,7 @@
         if(hint && d.ts){
           const mins = Math.max(0, Math.round((Date.now()-d.ts)/60000));
           const when = mins<1 ? 'updated just now' : 'updated '+mins+' min ago';
-          hint.textContent = 'Live ×'+m.toFixed(2)+' vs 26 May 2026 · '+when;
+          hint.textContent = 'Live difficulty ×'+m.toFixed(2)+' · '+when;
         }
       })
       .catch(()=>{});  // offline / endpoint not set up yet -> keep default

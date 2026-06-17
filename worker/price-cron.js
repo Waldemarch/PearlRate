@@ -35,10 +35,10 @@ const DEFAULT_COIN_ID = "wrapped-pearl";
 
 // --- network-difficulty source (AlphaPool miningcore /api/pools) ---
 const DEFAULT_DIFF_URL = "https://pearl.alphapool.tech/api/pools";
-// Network difficulty on 26 May 2026 = the page's ×1.00 baseline. ESTIMATE
-// (~18.1M @ ~25.7 EH/s vs ~3.56 EH/s at launch → ≈2.5M). Override with the
-// BASELINE_DIFFICULTY var once the exact 26 May 2026 value is confirmed.
-const DEFAULT_BASELINE_DIFFICULTY = 2500000;
+// Current network difficulty = the page's ×1.00 baseline (the point the table
+// yields are stated at). Confirmed 18,098,085 on 17 Jun 2026. Override with the
+// BASELINE_DIFFICULTY var to re-anchor to a newer snapshot.
+const DEFAULT_BASELINE_DIFFICULTY = 18098085;
 
 const JSON_HEADERS = { accept: "application/json" };
 const sane = (p) => isFinite(p) && p > 0 && p <= 1e6;
@@ -142,7 +142,7 @@ async function updatePrice(env) {
   return record;
 }
 
-// --- network difficulty multiplier (relative to 26 May 2026) ---
+// --- network difficulty multiplier (relative to the current baseline) ---
 // AlphaPool runs miningcore; /api/pools -> pools[].networkStats.networkDifficulty.
 // Tolerates {"pools":[...]} or a bare [...] array, and an optional PRL_POOL_ID.
 async function fromAlphaPool(env) {
