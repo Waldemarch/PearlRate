@@ -33,8 +33,19 @@ const DEFAULT_DEX_CHAIN = "ethereum";
 const DEFAULT_GT_NETWORK = "eth";
 const DEFAULT_COIN_ID = "wrapped-pearl";
 
-// --- network-difficulty source (AlphaPool miningcore /api/pools) ---
-const DEFAULT_DIFF_URL = "https://pearl.alphapool.tech/api/pools";
+// --- network-difficulty sources ---
+// Most PRL explorers (prlscan, hashrate.no, kryptex) 403 datacenter IPs, but
+// the mining pools' own JSON APIs accept Worker traffic. Shapes differ between
+// pools, so we try a list and use the first that yields a sane network
+// difficulty. Override the list with DIFFICULTY_URLS (comma-separated);
+// DIFFICULTY_URL still works as a single override and is tried first.
+const DEFAULT_DIFF_URLS = [
+  "https://pearl.alphapool.tech/api/pools",
+  "https://pearl.alphapool.tech/api/poolstats",
+  "https://pearl.luckypool.io/api/stats",
+  "https://pearl.luckypool.io/api/network/stats",
+  "https://pearlpool.io/api/stats",
+];
 // Current network difficulty = the page's ×1.00 baseline (the point the table
 // yields are stated at). Confirmed 18,098,085 on 17 Jun 2026. Override with the
 // BASELINE_DIFFICULTY var to re-anchor to a newer snapshot.
@@ -143,33 +154,110 @@ async function updatePrice(env) {
 }
 
 // --- network difficulty multiplier (relative to the current baseline) ---
-// AlphaPool runs miningcore; /api/pools -> pools[].networkStats.networkDifficulty.
-// Tolerates {"pools":[...]} or a bare [...] array, and an optional PRL_POOL_ID.
-async function fromAlphaPool(env) {
-  const url = env.DIFFICULTY_URL || DEFAULT_DIFF_URL;
-  const res = await fetch(url, { headers: JSON_HEADERS, cf: { cacheTtl: 0 } });
-  if (!res.ok) throw new Error("alphapool http " + res.status);
-  const data = await res.json();
-  const pools = Array.isArray(data) ? data : (data && data.pools) || [];
-  const pool = env.PRL_POOL_ID
-    ? pools.find((p) => p && p.id === env.PRL_POOL_ID)
-    : pools[0];
-  const difficulty = Number(pool && pool.networkStats && pool.networkStats.networkDifficulty);
-  if (!isFinite(difficulty) || difficulty <= 0) throw new Error("alphapool: no sane difficulty");
-  return { difficulty, source: "alphapool:miningcore" };
+// Pool APIs vary in shape (miningcore: pools[].networkStats.networkDifficulty;
+// luckypool: network.difficulty; etc.), so rather than hard-code one path we
+// recursively pull every "*diff*" number out of the JSON and pick the most
+// network-difficulty-like one that produces a sane multiplier vs the baseline.
+
+function diffCandidates(obj) {
+  const out = [];
+  const walk = (node, path) => {
+    if (node == null) return;
+    if (Array.isArray(node)) return node.forEach((v, i) => walk(v, path + "[" + i + "]"));
+    if (typeof node === "object") {
+      for (const k of Object.keys(node)) walk(node[k], path ? path + "." + k : k);
+      return;
+    }
+    const num = Number(node);
+    const key = (path.split(/[.\[]/).pop() || path).toLowerCase();
+    if (isFinite(num) && num > 0 && /diff/.test(key)) out.push({ path, value: num });
+  };
+  walk(obj, "");
+  return out;
+}
+
+// Higher score = more likely the *network* difficulty (not pool/share/var diff).
+function scoreCandidate(path) {
+  const p = path.toLowerCase();
+  let s = 0;
+  if (/network/.test(p)) s += 3;
+  if (/networkdifficulty/.test(p)) s += 2;
+  if (/(pool|share|worker|miner|vardiff|var_diff|target|min)/.test(p)) s -= 4;
+  return s;
+}
+
+function diffSources(env) {
+  if (env.DIFFICULTY_URLS) {
+    return env.DIFFICULTY_URLS.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  const list = DEFAULT_DIFF_URLS.slice();
+  if (env.DIFFICULTY_URL) list.unshift(env.DIFFICULTY_URL);
+  return list;
+}
+
+async function probeDiff(url) {
+  const result = { url };
+  try {
+    const res = await fetch(url, { headers: JSON_HEADERS, cf: { cacheTtl: 0 } });
+    result.status = res.status;
+    if (!res.ok) { result.error = "http " + res.status; return result; }
+    const data = await res.json();
+    result.candidates = diffCandidates(data)
+      .map((c) => ({ ...c, score: scoreCandidate(c.path) }))
+      .sort((a, b) => b.score - a.score || b.value - a.value);
+  } catch (e) {
+    result.error = (e && e.message) || String(e);
+  }
+  return result;
+}
+
+async function pickDifficulty(env, baseline) {
+  const errors = [];
+  for (const url of diffSources(env)) {
+    const r = await probeDiff(url);
+    if (!r.candidates || !r.candidates.length) {
+      errors.push(url + ": " + (r.error || "no diff field"));
+      continue;
+    }
+    const best = r.candidates.find((c) => saneMult(Math.round((c.value / baseline) * 100) / 100));
+    if (best) return { difficulty: best.value, source: new URL(url).hostname + ":" + best.path };
+    errors.push(url + ": no sane diff (" + r.candidates.slice(0, 3).map((c) => c.path + "=" + c.value).join(", ") + ")");
+  }
+  throw new Error("no difficulty source worked -> " + errors.join(" | "));
 }
 
 async function updateDifficulty(env) {
   const baseline = Number(env.BASELINE_DIFFICULTY) > 0
     ? Number(env.BASELINE_DIFFICULTY)
     : DEFAULT_BASELINE_DIFFICULTY;
-  const { difficulty, source } = await fromAlphaPool(env);
+  const { difficulty, source } = await pickDifficulty(env, baseline);
   const mult = Math.round((difficulty / baseline) * 100) / 100;
   if (!saneMult(mult)) throw new Error("computed insane multiplier: " + mult);
 
   const record = { mult, difficulty, baseline, ts: Date.now(), source };
   await env.PRICE_KV.put(DIFF_KV_KEY, JSON.stringify(record));
   return record;
+}
+
+// Diagnostics for /?diffdebug=1 — every source's HTTP status and the
+// difficulty-like numbers found (with the resulting mult), so the correct
+// endpoint/field can be confirmed without shell access to the pools.
+async function debugDifficulty(env) {
+  const baseline = Number(env.BASELINE_DIFFICULTY) > 0
+    ? Number(env.BASELINE_DIFFICULTY)
+    : DEFAULT_BASELINE_DIFFICULTY;
+  const sources = [];
+  for (const url of diffSources(env)) {
+    const r = await probeDiff(url);
+    if (r.candidates) {
+      r.candidates = r.candidates.slice(0, 8).map((c) => ({
+        ...c,
+        mult: Math.round((c.value / baseline) * 100) / 100,
+      }));
+    }
+    sources.push(r);
+  }
+  return { baseline, sources };
 }
 
 export default {
@@ -208,6 +296,9 @@ export default {
       } catch (e) {
         return Response.json({ error: String((e && e.message) || e) }, { status: 502 });
       }
+    }
+    if (url.searchParams.get("diffdebug") === "1") {
+      return Response.json(await debugDifficulty(env));
     }
     return new Response("pearlrate price cron worker — ok\n", {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
