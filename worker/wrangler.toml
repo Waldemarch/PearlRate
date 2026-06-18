@@ -20,6 +20,9 @@
 name = "pearlrate-price-cron"
 main = "price-cron.js"
 compatibility_date = "2025-05-29"
+# Cloudflare account that owns this Worker (not a secret — it's in the dashboard
+# URL). Lets `wrangler deploy` run non-interactively in CI with only an API token.
+account_id = "cdfddcb4b83f560a0ea11155c4a9bdc4"
 
 # Every 5 minutes. Cron is UTC; "*/5 * * * *" = at :00, :05, :10, ...
 [triggers]
