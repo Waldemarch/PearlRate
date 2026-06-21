@@ -217,3 +217,31 @@ curl "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?diff=1"
 
 Until the first push, the page just keeps its manual ×1.00 default (the slider
 still works as an override).
+
+---
+
+# KV write budget (why writes stay low)
+
+Cloudflare's free KV plan allows **1,000 writes/day**. Writing both the price
+and the difficulty on every 5-minute tick used ~576 writes/day (~58% of quota),
+so the Cron Worker now minimises writes three ways:
+
+- **One combined key.** Price and difficulty live in a single KV key
+  `prl_state = {price:{…}, diff:{…}}` instead of two keys. Each scheduled run
+  read-modify-writes that one key; the Pages Functions still expose them
+  separately at `/api/price` and `/api/difficulty` (and fall back to the old
+  `prl_price` / `prl_diff` keys until the first combined write lands).
+- **Write-on-change with a heartbeat.** A tick only PUTs when the value
+  actually changed. To keep the page's "updated N min ago" honest, an unchanged
+  value is still refreshed at most every **30 min** (price) / **6 h**
+  (difficulty). So a flat price costs ~48 writes/day instead of 288, and a flat
+  difficulty costs ~4/day.
+- **Difficulty on its own hourly cron.** Difficulty barely moves, so it runs at
+  minute 7 each hour (`7 * * * *`) rather than every 5 min — a slot that never
+  collides with the `*/5` price ticks, so the two never write `prl_state` in the
+  same minute. The Worker routes each schedule by `event.cron`.
+
+Net effect: a quiet day now costs roughly **50 writes (~5% of quota)** instead
+of ~580, with plenty of headroom for price volatility. (`?run=1` / `?diff=1`
+force a write regardless, for testing.) D1 history writes are unchanged — D1 has
+its own, separate quota.

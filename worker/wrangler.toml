@@ -24,9 +24,12 @@ compatibility_date = "2025-05-29"
 # URL). Lets `wrangler deploy` run non-interactively in CI with only an API token.
 account_id = "cdfddcb4b83f560a0ea11155c4a9bdc4"
 
-# Every 5 minutes. Cron is UTC; "*/5 * * * *" = at :00, :05, :10, ...
+# Cron is UTC. Price ticks every 5 min (":00, :05, :10, ..."); difficulty moves
+# slowly so it gets its own hourly tick at minute 7 — which never lands on a */5
+# slot, so the two never write the shared KV key in the same minute. The Worker
+# routes each schedule by event.cron (see price-cron.js).
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "7 * * * *"]
 
 # Same KV namespace as the Pages project ("pearlrate-price").
 [[kv_namespaces]]
