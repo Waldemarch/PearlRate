@@ -1,10 +1,12 @@
 // Cloudflare Worker — scheduled PRL price updater.
 //
-// Runs on a Cron Trigger (see worker/wrangler.toml, default every 5 min),
-// fetches the PRL price, and writes it to the SAME stores the PearlRate Pages
-// Functions read from:
-//   - KV  PRICE_KV  key "prl_price"  -> latest price (served by /api/price)
-//   - D1  PRICE_DB  table prl_price  -> full history (served by /api/history)
+// Runs on Cron Triggers (see worker/wrangler.toml: price every 5 min, difficulty
+// hourly), fetches the PRL price/difficulty, and writes them to the SAME stores
+// the PearlRate Pages Functions read from:
+//   - KV  PRICE_KV  key "prl_state" -> {price, diff} (served by /api/price,
+//         /api/difficulty). One combined key, written only on change (+ a
+//         heartbeat), to stay well under the free KV write quota.
+//   - D1  PRICE_DB  table prl_price -> full history (served by /api/history)
 //
 // This replaces the Mac-mini updater: no machine to keep awake, no shared
 // token (the writes happen inside Cloudflare via bindings, not over HTTP).
@@ -26,8 +28,25 @@
 //   PRL_COINGECKO_ID    CoinGecko coin id (default "wrapped-pearl")
 //   COINGECKO_API_KEY   demo key, sent as x-cg-demo-api-key
 
-const KV_KEY = "prl_price";
-const DIFF_KV_KEY = "prl_diff";
+// KV is one combined key (prl_state = {price, diff}) so each scheduled run
+// touches a single key, and we only PUT when the value actually changed — the
+// daily KV write quota was the bottleneck. The legacy single keys are still
+// read as a fallback by the Pages Functions during the first deploy.
+const STATE_KEY = "prl_state";
+const KV_KEY = "prl_price"; // legacy, read-only fallback
+const DIFF_KV_KEY = "prl_diff"; // legacy, read-only fallback
+
+// Cron schedules (UTC). Price polls often; difficulty moves slowly so it gets
+// its own hourly trigger. Minute 7 never coincides with the */5 price ticks,
+// so the two never read-modify-write the combined key in the same minute.
+const PRICE_CRON = "*/5 * * * *";
+const DIFF_CRON = "7 * * * *";
+
+// Write-on-change with a heartbeat: even when the value is unchanged, refresh
+// it (and its `ts`) at least this often so the page's "updated N min ago" hint
+// stays honest. Between heartbeats an unchanged value costs zero KV writes.
+const PRICE_HEARTBEAT_MS = 30 * 60 * 1000; // 30 min
+const DIFF_HEARTBEAT_MS = 6 * 60 * 60 * 1000; // 6 h
 const DEFAULT_TOKEN = "0x07696dcab55e62cfef953666b29fe1970518cb00"; // WPRL / Ethereum
 const DEFAULT_DEX_CHAIN = "ethereum";
 const DEFAULT_GT_NETWORK = "eth";
@@ -118,7 +137,17 @@ async function fromCoinGecko(env) {
   return { price, source: "coingecko:" + id };
 }
 
-async function updatePrice(env) {
+// Read the combined KV state (never throws — a missing/corrupt key is {}).
+async function readState(env) {
+  try {
+    const raw = await env.PRICE_KV.get(STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function updatePrice(env, opts) {
   const sources = [fromDexScreener, fromGeckoTerminal, fromCoinGecko];
   const errors = [];
   let result = null;
@@ -135,8 +164,19 @@ async function updatePrice(env) {
 
   const record = { price: result.price, ts: Date.now(), source: result.source };
 
-  // Latest price -> KV (single fast read for the page).
-  await env.PRICE_KV.put(KV_KEY, JSON.stringify(record));
+  // Latest price -> KV, but only when it changed (or the heartbeat is due), so
+  // a flat price between polls costs no KV writes. Merge into the combined key
+  // so we never clobber the difficulty half.
+  const state = await readState(env);
+  const prev = state.price;
+  const changed = !prev || Number(prev.price) !== record.price;
+  const stale = !prev || !prev.ts || record.ts - prev.ts >= PRICE_HEARTBEAT_MS;
+  const wrote = (opts && opts.force) || changed || stale;
+  if (wrote) {
+    state.price = record;
+    await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
+  }
+  record.wrote = wrote;
 
   // Full history -> D1 (for the chart). Don't fail the run if this hiccups.
   if (env.PRICE_DB) {
@@ -226,7 +266,7 @@ async function pickDifficulty(env, baseline) {
   throw new Error("no difficulty source worked -> " + errors.join(" | "));
 }
 
-async function updateDifficulty(env) {
+async function updateDifficulty(env, opts) {
   const baseline = Number(env.BASELINE_DIFFICULTY) > 0
     ? Number(env.BASELINE_DIFFICULTY)
     : DEFAULT_BASELINE_DIFFICULTY;
@@ -235,7 +275,19 @@ async function updateDifficulty(env) {
   if (!saneMult(mult)) throw new Error("computed insane multiplier: " + mult);
 
   const record = { mult, difficulty, baseline, ts: Date.now(), source };
-  await env.PRICE_KV.put(DIFF_KV_KEY, JSON.stringify(record));
+
+  // Write-on-change with a (long) heartbeat, merged into the combined key —
+  // difficulty barely moves, so this is almost always a no-op write.
+  const state = await readState(env);
+  const prev = state.diff;
+  const changed = !prev || Number(prev.difficulty) !== difficulty || Number(prev.mult) !== mult;
+  const stale = !prev || !prev.ts || record.ts - prev.ts >= DIFF_HEARTBEAT_MS;
+  const wrote = (opts && opts.force) || changed || stale;
+  if (wrote) {
+    state.diff = record;
+    await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
+  }
+  record.wrote = wrote;
   return record;
 }
 
@@ -261,18 +313,22 @@ async function debugDifficulty(env) {
 }
 
 export default {
-  // Cron Trigger entry point.
+  // Cron Trigger entry point. Two schedules share this Worker: the frequent
+  // price tick and the hourly difficulty tick (see PRICE_CRON / DIFF_CRON).
   async scheduled(event, env, ctx) {
+    if (event.cron === DIFF_CRON) {
+      // Difficulty is best-effort and independent — its failure can't affect price.
+      ctx.waitUntil(
+        updateDifficulty(env)
+          .then((r) => console.log("updated PRL difficulty:", JSON.stringify(r)))
+          .catch((e) => console.error("difficulty update failed:", e && e.message))
+      );
+      return;
+    }
     ctx.waitUntil(
       updatePrice(env)
         .then((r) => console.log("updated PRL price:", JSON.stringify(r)))
         .catch((e) => console.error("price update failed:", e && e.message))
-    );
-    // Difficulty is best-effort and independent — its failure must not affect price.
-    ctx.waitUntil(
-      updateDifficulty(env)
-        .then((r) => console.log("updated PRL difficulty:", JSON.stringify(r)))
-        .catch((e) => console.error("difficulty update failed:", e && e.message))
     );
   },
 
@@ -283,7 +339,7 @@ export default {
     const url = new URL(request.url);
     if (url.searchParams.get("run") === "1") {
       try {
-        const record = await updatePrice(env);
+        const record = await updatePrice(env, { force: true });
         return Response.json(record);
       } catch (e) {
         return Response.json({ error: String((e && e.message) || e) }, { status: 502 });
@@ -291,7 +347,7 @@ export default {
     }
     if (url.searchParams.get("diff") === "1") {
       try {
-        const record = await updateDifficulty(env);
+        const record = await updateDifficulty(env, { force: true });
         return Response.json(record);
       } catch (e) {
         return Response.json({ error: String((e && e.message) || e) }, { status: 502 });

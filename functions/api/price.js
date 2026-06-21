@@ -9,11 +9,24 @@
 //
 // Stored record shape: {"price":1.45,"ts":1716998400000,"source":"safetrade:prlusdt"}
 
+// Price + difficulty share one combined KV key (prl_state = {price, diff}) so
+// the updater spends a single KV write per change. KEY is the legacy standalone
+// key, still read as a fallback for the first deploy / older writers.
+const STATE_KEY = "prl_state";
 const KEY = "prl_price";
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const NO_STORE = { ...JSON_HEADERS, "Cache-Control": "no-store" };
 
 export async function onRequestGet({ env }) {
+  const rawState = await env.PRICE_KV.get(STATE_KEY);
+  if (rawState) {
+    try {
+      const record = JSON.parse(rawState).price;
+      if (record) return new Response(JSON.stringify(record), { headers: NO_STORE });
+    } catch {
+      // fall through to the legacy key
+    }
+  }
   const raw = await env.PRICE_KV.get(KEY);
   if (!raw) {
     return new Response(JSON.stringify({ price: null }), { status: 404, headers: NO_STORE });
@@ -46,8 +59,17 @@ export async function onRequestPost({ request, env }) {
     source: body && body.source ? String(body.source).slice(0, 64) : "unknown",
   };
 
-  // Latest price -> KV (fast single read for the page).
-  await env.PRICE_KV.put(KEY, JSON.stringify(record));
+  // Latest price -> KV, merged into the combined key so we keep the difficulty
+  // half. (An explicit POST always writes — no write-on-change here.)
+  let state = {};
+  try {
+    const raw = await env.PRICE_KV.get(STATE_KEY);
+    if (raw) state = JSON.parse(raw) || {};
+  } catch {
+    state = {};
+  }
+  state.price = record;
+  await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
 
   // Full history -> D1 (for the chart). Guarded so the endpoint still works
   // before the D1 binding is configured.
