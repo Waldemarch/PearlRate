@@ -17,6 +17,10 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 - **Fleet totals** — enter quantities per card to size your whole fleet
 - **Live market badge** — PRL price, 24h change and sparkline, refreshed every minute while the tab is open
 - **Price history chart** — hover/tap/arrow-key tooltip, high/low markers, and break-even lines showing the PRL price at which each card in your fleet stops covering its electricity
+- **Analysis** (your fleet, or any single card):
+  - *Profitability map* — net $/day across PRL price × difficulty, with the break-even line, safety margins ("PRL can fall 66% before a loss") and click-to-try scenarios
+  - *Payback & ROI* — enter what the hardware cost, assume a monthly difficulty growth and price trend, and get the payback date plus a cumulative-profit chart with a ±3 pp band
+  - *GPU efficiency* — yield vs power bubble chart with equal-efficiency lines, the break-even line at your electricity price, and a PRL/kWh ranking
 
 Price and difficulty follow the live values until you move their slider (manual mode); **↺ Live** switches back. Yields are editable inline (click a yield cell) so you can drop in your own benchmarks.
 
