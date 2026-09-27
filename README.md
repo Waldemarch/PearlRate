@@ -13,10 +13,12 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 - **Yield/day (PRL)** — benchmark yield ÷ difficulty multiplier (price-independent)
 - **Gross/day** and **Gross/h** — yield × PRL price
 - **Break-even rent/h** — the max hourly rental a miner can pay and still profit (your pricing ceiling as a host)
-- **Self-mine net/day** — running your own card, electricity only
+- **Self-mine net/day** — running your own card: gross minus pool fee, minus electricity
 - **Fleet totals** — enter quantities per card to size your whole fleet
+- **Live market badge** — PRL price, 24h change and sparkline, refreshed every minute while the tab is open
+- **Price history chart** — hover/tap/arrow-key tooltip, high/low markers, and break-even lines showing the PRL price at which each card in your fleet stops covering its electricity
 
-Yields are editable inline (double-click a yield cell) so you can drop in your own benchmarks.
+Price and difficulty follow the live values until you move their slider (manual mode); **↺ Live** switches back. Yields are editable inline (click a yield cell) so you can drop in your own benchmarks.
 
 ## Data baseline
 

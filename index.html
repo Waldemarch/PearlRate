@@ -7,6 +7,18 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23a8e6e2'/%3E%3Cstop offset='.38' stop-color='%23c9b8f0'/%3E%3Cstop offset='.66' stop-color='%23f0b8d4'/%3E%3Cstop offset='1' stop-color='%23bfe3c0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%230a0c0f'/%3E%3Ctext x='16' y='24' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-weight='800' font-size='24' fill='url(%23g)'%3EP%3C/text%3E%3C/svg%3E" />
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23a8e6e2'/%3E%3Cstop offset='.38' stop-color='%23c9b8f0'/%3E%3Cstop offset='.66' stop-color='%23f0b8d4'/%3E%3Cstop offset='1' stop-color='%23bfe3c0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%230a0c0f'/%3E%3Ctext x='16' y='24' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-weight='800' font-size='24' fill='url(%23g)'%3EP%3C/text%3E%3C/svg%3E" />
 <meta name="description" content="Break-even rental and profitability calculator for mining Pearl (PRL) on NVIDIA GPUs. Live recompute by PRL price and network difficulty." />
+<script>
+  // Apply the saved (or OS-preferred) theme before first paint, so light-theme
+  // users never see a flash of the dark page.
+  (function(){
+    var t=null;
+    try{ t=JSON.parse(localStorage.getItem('pearlrate:theme')); }catch(e){}
+    if(t!=='light' && t!=='dark'){
+      t=(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -28,6 +40,15 @@
     --pearl-soft:linear-gradient(115deg,rgba(168,230,226,.16),rgba(201,184,240,.16),rgba(240,184,212,.16));
     --thumb-bg:#0a0c0f; --thumb-border:#c9b8f0; --thumb-glow:rgba(201,184,240,.15);
     --glow-1:rgba(201,184,240,.10); --glow-2:rgba(168,230,226,.08);
+    --row-hover:rgba(255,255,255,.025);
+    --track-fill:rgba(201,184,240,.55);
+    --chart-line:#b79cf2;
+    --be-line:rgba(251,113,133,.75);
+    --loss-fill:rgba(251,113,133,.06);
+    --flash-up:rgba(74,222,128,.22);
+    --flash-down:rgba(251,113,133,.22);
+    --skel:rgba(255,255,255,.03); --skel-hi:rgba(255,255,255,.07);
+    --tip-bg:#181e26; --tip-shadow:0 10px 28px rgba(0,0,0,.45);
   }
   /* Warm, slightly-yellow light theme */
   [data-theme="light"]{
@@ -47,6 +68,15 @@
     --pearl-soft:linear-gradient(115deg,rgba(31,143,134,.12),rgba(122,82,192,.12),rgba(195,63,134,.12));
     --thumb-bg:#fffdf6; --thumb-border:#7a52c0; --thumb-glow:rgba(122,82,192,.18);
     --glow-1:rgba(122,82,192,.06); --glow-2:rgba(31,143,134,.05);
+    --row-hover:rgba(44,40,32,.035);
+    --track-fill:rgba(122,82,192,.5);
+    --chart-line:#7a52c0;
+    --be-line:rgba(220,38,38,.7);
+    --loss-fill:rgba(220,38,38,.05);
+    --flash-up:rgba(21,128,61,.16);
+    --flash-down:rgba(220,38,38,.14);
+    --skel:rgba(44,40,32,.04); --skel-hi:rgba(44,40,32,.09);
+    --tip-bg:#fffdf6; --tip-shadow:0 10px 28px rgba(80,60,20,.16);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-text-size-adjust:100%}
@@ -65,6 +95,7 @@
     transition:background-color .25s ease, color .25s ease;
   }
   .wrap{max-width:1120px;margin:0 auto;padding:32px 20px 80px}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--thumb-border);outline-offset:2px}
 
   /* Header */
   header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:26px}
@@ -85,12 +116,27 @@
   .pricebadge{
     border:1px solid var(--line);
     background:var(--panel);
-    border-radius:14px;padding:12px 16px;min-width:172px;
+    border-radius:14px;padding:12px 16px;min-width:214px;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
   }
-  .pricebadge .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
-  .pricebadge .val{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:30px;line-height:1.1;margin-top:2px}
+  .pricebadge .lab{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+  .pricebadge .bage{margin-left:auto;letter-spacing:.02em;text-transform:none}
+  .pricebadge .val{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:30px;line-height:1.1;margin-top:2px;border-radius:6px}
   .pricebadge .val small{font-size:14px;color:var(--ink-dim);font-weight:600}
+  .pricebadge .bsub{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:22px;margin-top:2px}
+  #badgeSpark{width:84px;height:22px;display:block;overflow:visible}
+  .spk{fill:none;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+  .spk.up{stroke:var(--green)} .spk.down{stroke:var(--red)}
+  .chg{font-size:11px;font-weight:600;white-space:nowrap}
+  .chg.up{color:var(--green)} .chg.down{color:var(--red)}
+  .livedot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex:0 0 auto}
+  [data-state="live"] .livedot{background:var(--green);animation:livepulse 2.2s ease-out infinite}
+  [data-state="stale"] .livedot{background:var(--amber)}
+  @keyframes livepulse{
+    0%{box-shadow:0 0 0 0 rgba(74,222,128,.55)}
+    70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}
+    100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}
+  }
   .headright{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
   .themebtn{
     display:inline-flex;align-items:center;gap:8px;
@@ -111,17 +157,20 @@
     background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:18px;margin-bottom:22px;
   }
-  .ctl{display:flex;flex-direction:column;gap:9px}
-  .ctl .top{display:flex;justify-content:space-between;align-items:baseline}
-  .ctl label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+  .ctl{display:flex;flex-direction:column;gap:9px;min-width:0}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ctl label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .ctl .num{
     font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;color:var(--ink);
-    background:transparent;border:none;text-align:right;width:96px;
+    background:transparent;border:none;text-align:right;width:76px;flex:0 0 auto;border-radius:4px;
+    -moz-appearance:textfield;appearance:textfield;
   }
-  .ctl .num:focus{outline:none;color:#fff}
+  .ctl .num::-webkit-outer-spin-button,.ctl .num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .ctl .num:focus{outline:none;color:var(--ink);box-shadow:0 1px 0 var(--thumb-border)}
+  .rangebox{position:relative;display:flex;align-items:center;height:16px}
   input[type=range]{
-    -webkit-appearance:none;appearance:none;height:4px;border-radius:99px;
-    background:linear-gradient(90deg,var(--line-soft),var(--line));outline:none;width:100%;
+    -webkit-appearance:none;appearance:none;height:4px;border-radius:99px;outline:none;width:100%;
+    background:linear-gradient(90deg,var(--track-fill) 0,var(--track-fill) var(--fill,0%),var(--line) var(--fill,0%),var(--line) 100%);
   }
   input[type=range]::-webkit-slider-thumb{
     -webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;
@@ -131,7 +180,20 @@
   input[type=range]::-moz-range-thumb{
     width:14px;height:14px;border-radius:50%;background:var(--thumb-bg);border:2px solid var(--thumb-border);cursor:pointer;
   }
-  .ctl .hint{font-size:10.5px;color:var(--ink-faint)}
+  /* Where the live market value sits on the track while you're in manual mode */
+  .livetick{
+    position:absolute;top:50%;left:calc(8px + (100% - 16px) * var(--f,0));
+    width:3px;height:12px;margin:-6px 0 0 -1.5px;border-radius:2px;background:var(--green);pointer-events:none;
+  }
+  .livetick[hidden]{display:none}
+  .ctl .hint{font-size:10.5px;color:var(--ink-faint);display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;min-height:18px}
+  .hdot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 auto}
+  .hdot.stale{background:var(--amber)}
+  .golive{
+    background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:10px;padding:1px 7px;border-radius:6px;cursor:pointer;transition:.15s;
+  }
+  .golive:hover{border-color:var(--thumb-border);color:var(--ink)}
 
   /* Table */
   .tablecard{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
@@ -143,27 +205,57 @@
     white-space:nowrap;background:var(--panel-2);
   }
   thead th:first-child{text-align:left}
-  tbody td{padding:13px 16px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  tbody td{padding:13px 16px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap;border-radius:0}
   tbody td:first-child{text-align:left}
-  tbody tr:hover{background:rgba(255,255,255,.015)}
+  tbody tr:hover{background:var(--row-hover)}
   .gpu{display:flex;flex-direction:column;gap:1px}
-  .gpu .nm{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .gpu .nm{font-weight:600;color:var(--ink);display:flex;align-items:center;flex-wrap:wrap;gap:2px 8px}
+  .gpu .nmt{white-space:nowrap}
   .gpu .arch{font-size:10px;color:var(--ink-faint);letter-spacing:.06em}
-  .est{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);border:1px solid rgba(251,191,36,.35);border-radius:5px;padding:1px 5px}
   .chip{font-size:8.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;border-radius:5px;padding:1px 6px;white-space:nowrap;vertical-align:middle}
   .chip-verified{color:var(--green);background:var(--green-dim);border:1px solid var(--green)}
   .chip-est{color:var(--amber);background:rgba(251,191,36,.10);border:1px dashed rgba(251,191,36,.55)}
   .est-yield{font-style:italic;color:var(--ink-dim)}
-  .qty{width:52px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
-       font-family:inherit;font-size:13px;text-align:center;padding:5px 4px}
-  .qty:focus{outline:none;border-color:#c9b8f0}
+  .qtybox{display:inline-flex;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:border-color .15s}
+  .qtybox:focus-within{border-color:var(--thumb-border)}
+  .qbtn{width:24px;height:28px;border:0;background:transparent;color:var(--ink-faint);font-family:inherit;font-size:14px;line-height:1;cursor:pointer;transition:.15s}
+  .qbtn:hover{color:var(--ink);background:var(--row-hover)}
+  .qty{width:38px;background:transparent;border:0;color:var(--ink);
+       font-family:inherit;font-size:13px;text-align:center;padding:5px 0;-moz-appearance:textfield;appearance:textfield}
+  .qty::-webkit-outer-spin-button,.qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .qty:focus{outline:none}
+  .yieldcell{
+    display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;border-radius:6px;
+    color:inherit;font:inherit;cursor:pointer;padding:2px 4px;margin:-2px -4px;
+  }
+  .yieldcell:hover{background:var(--row-hover)}
+  .yieldcell .pen{width:11px;height:11px;flex:0 0 auto;color:var(--ink-faint);opacity:0;transition:opacity .15s}
+  .yieldcell:hover .pen,.yieldcell:focus-visible .pen{opacity:1}
+  @media(hover:none){.yieldcell .pen{opacity:.7}}
+  .yieldcell.est-yield .yv{font-style:italic;color:var(--ink-dim)}
+  .yieldcell.custom .yv{color:var(--ink);border-bottom:1px dashed var(--thumb-border)}
+  td.editing .yieldcell{display:none}
+  .yieldedit{
+    width:80px;background:var(--panel-2);border:1px solid var(--thumb-border);border-radius:8px;color:var(--ink);
+    font-family:inherit;font-size:13px;text-align:right;padding:4px 6px;
+  }
+  .yieldedit:focus{outline:none;box-shadow:0 0 0 3px var(--thumb-glow)}
+  .yieldedit{-moz-appearance:textfield;appearance:textfield}
+  .yieldedit::-webkit-outer-spin-button,.yieldedit::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .yieldcap{display:block;font-size:9px;color:var(--ink-faint);margin-top:2px}
   .big{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:16px}
   .pearltext{background:var(--pearl);-webkit-background-clip:text;background-clip:text;color:transparent}
   .pos{color:var(--green)} .neg{color:var(--red)} .dim{color:var(--ink-dim)}
   .breakeven{font-weight:700}
-  tfoot td{padding:15px 16px;text-align:right;border-top:2px solid var(--line);background:var(--panel-2)}
+  tfoot td{padding:15px 16px;text-align:right;border-top:2px solid var(--line);background:var(--panel-2);white-space:nowrap}
   tfoot td:first-child{text-align:left;font-weight:600;letter-spacing:.04em}
   tfoot .big{font-size:17px}
+
+  /* Value changed by a live update */
+  @keyframes flashUp{from{background-color:var(--flash-up)}}
+  @keyframes flashDown{from{background-color:var(--flash-down)}}
+  .flash-up{animation:flashUp 1.2s ease-out}
+  .flash-down{animation:flashDown 1.2s ease-out}
 
   /* Legend / notes */
   .legend{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
@@ -172,29 +264,81 @@
   .note p,.note li{font-size:12px;color:var(--ink-dim);line-height:1.55}
   .note ul{padding-left:16px;display:flex;flex-direction:column;gap:4px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--pearl);display:inline-block}
+
   /* Price history chart */
   .chartcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px 12px;margin-top:16px}
-  .chartcard .chead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .chartcard .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
   .chartcard h3{font-family:"Bricolage Grotesque",sans-serif;font-size:13px;letter-spacing:.02em;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .ctitle{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .cstats{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;font-size:11px;color:var(--ink-dim);min-height:26px}
+  .cs-now{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:21px;color:var(--ink);line-height:1.1}
+  .cs-lab{color:var(--ink-faint)}
+  .cctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ranges{display:flex;gap:6px}
-  .ranges button{
+  .ranges button,.chipbtn{
     background:transparent;border:1px solid var(--line);color:var(--ink-dim);
     font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
     padding:5px 9px;border-radius:8px;cursor:pointer;transition:.15s;
   }
-  .ranges button:hover{border-color:#c9b8f0;color:var(--ink)}
-  .ranges button.active{border-color:var(--thumb-border);color:var(--ink);background:var(--pearl-soft)}
-  .chartwrap{position:relative;width:100%;height:200px}
-  .chartwrap svg{display:block;width:100%;height:100%;overflow:visible}
-  .chartwrap .axlab{font-size:10px;fill:var(--ink-faint);font-family:"IBM Plex Mono",monospace}
-  .chart-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint)}
+  .ranges button:hover,.chipbtn:hover{border-color:var(--thumb-border);color:var(--ink)}
+  .ranges button.active,.chipbtn.active{border-color:var(--thumb-border);color:var(--ink);background:var(--pearl-soft)}
+  .chipbtn{display:inline-flex;align-items:center;gap:6px}
+  .chipbtn .key{width:14px;border-top:1.5px dashed var(--be-line)}
+  .chartwrap{position:relative;width:100%;height:250px}
+  .chartwrap svg{display:block;width:100%;height:100%;overflow:visible;touch-action:pan-y;cursor:crosshair;transition:opacity .2s}
+  .chartwrap svg:focus{outline:none}
+  .chartwrap svg:focus-visible{outline:2px solid var(--thumb-border);outline-offset:4px;border-radius:6px}
+  .chartwrap.refetch svg{opacity:.4}
+  .chartwrap.skeleton::after{
+    content:"";position:absolute;inset:14px 58px 24px 48px;border-radius:10px;
+    background:linear-gradient(90deg,var(--skel) 0%,var(--skel-hi) 50%,var(--skel) 100%);background-size:200% 100%;
+    animation:shimmer 1.3s linear infinite;
+  }
+  @keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+  .chartwrap text{font-family:"IBM Plex Mono",monospace}
+  .chartwrap .axlab{font-size:10px;fill:var(--ink-faint)}
+  .chartwrap .grid{stroke:var(--line-soft);stroke-width:1}
+  .chartwrap .axis{stroke:var(--line);stroke-width:1}
+  .chartwrap .cg-a{stop-color:var(--chart-line);stop-opacity:.24}
+  .chartwrap .cg-b{stop-color:var(--chart-line);stop-opacity:0}
+  .chartwrap .carea{fill:url(#cg)}
+  .chartwrap .cline{fill:none;stroke:var(--chart-line);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .chartwrap .cdot{fill:var(--chart-line)}
+  .chartwrap .cend,.chartwrap .hd{fill:var(--chart-line);stroke:var(--panel);stroke-width:2}
+  .chartwrap .cpulse{fill:var(--chart-line);transform-box:fill-box;transform-origin:center;animation:cpulse 2.2s ease-out infinite}
+  @keyframes cpulse{from{transform:scale(1);opacity:.45}to{transform:scale(3.4);opacity:0}}
+  .chartwrap .cext{fill:var(--panel);stroke:var(--chart-line);stroke-width:1.5}
+  .chartwrap .extlab{font-size:10px;fill:var(--ink-dim)}
+  .chartwrap .endlab{font-size:11px;font-weight:600;fill:var(--ink)}
+  .chartwrap .lossz{fill:var(--loss-fill)}
+  .chartwrap .beline{stroke:var(--be-line);stroke-width:1;stroke-dasharray:4 4}
+  .chartwrap .belab{font-size:10px;fill:var(--ink-dim)}
+  .chartwrap .belab-bg{fill:var(--panel);opacity:.88}
+  .chartwrap .beout{font-size:10px;fill:var(--ink-faint)}
+  .chartwrap .hx{stroke:var(--ink-faint);stroke-width:1}
+  .ctip{
+    position:absolute;top:4px;left:0;z-index:2;pointer-events:none;min-width:156px;max-width:250px;
+    background:var(--tip-bg);border:1px solid var(--line);border-radius:10px;padding:8px 11px;
+    font-size:11px;line-height:1.45;color:var(--ink-dim);box-shadow:var(--tip-shadow);
+  }
+  .ctip[hidden]{display:none}
+  .ctip .tt-v{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:17px;color:var(--ink);line-height:1.15}
+  .ctip .tt-t{font-size:10.5px;color:var(--ink-faint)}
+  .ctip .tt-d{margin-top:3px}
+  .ctip .tt-d.up{color:var(--green)} .ctip .tt-d.down{color:var(--red)}
+  .ctip .tt-f{margin-top:3px}
+  .ctip .tt-f b{font-weight:600}
+  .ctip .tt-l{margin-top:3px;color:var(--red);white-space:normal}
+  .chart-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-faint);text-align:center;padding:0 16px}
+  .cnote{font-size:10.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  .cnote[hidden]{display:none}
   .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 0}
   button.reset{
     background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
     font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
     padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s;
   }
-  button.reset:hover{border-color:#c9b8f0;color:var(--ink)}
+  button.reset:hover{border-color:var(--thumb-border);color:var(--ink)}
 
   /* Sponsor / Vast.ai promo */
   .sponsor{
@@ -249,6 +393,48 @@
     .controls{grid-template-columns:repeat(2,1fr)}
     .legend{grid-template-columns:1fr}
   }
+
+  /* Phones: header in one row, one control per row, and the table becomes
+     a stack of cards so every figure is visible without sideways scrolling. */
+  @media(max-width:640px){
+    .wrap{padding:22px 14px 60px}
+    header{gap:14px;margin-bottom:18px}
+    .kicker{letter-spacing:.16em;font-size:10px}
+    .headright{flex-direction:row-reverse;align-items:flex-start;width:100%}
+    .pricebadge{flex:1;min-width:0}
+    .controls{grid-template-columns:1fr;gap:16px;padding:16px}
+
+    table{min-width:0}
+    thead{display:none}
+    table,tbody,tfoot{display:block}
+    tbody tr,tfoot tr{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px 12px;padding:14px 16px}
+    tbody tr{border-bottom:1px solid var(--line-soft)}
+    tfoot tr{background:var(--panel-2);border-top:2px solid var(--line)}
+    tbody td,tfoot td{
+      display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;
+      grid-column:span 2;min-width:0;padding:0;border:0;text-align:left;white-space:normal;background:none;
+    }
+    tbody td.breakeven,tfoot td.breakeven{grid-column:span 3}
+    td[data-label]::before{
+      content:attr(data-label);display:block;margin-bottom:1px;
+      font-family:"IBM Plex Mono",monospace;font-size:9px;font-weight:400;letter-spacing:.08em;line-height:1.35;
+      text-transform:uppercase;color:var(--ink-faint);
+    }
+    tbody td.c-gpu,tfoot td:first-child{grid-column:1/-1;justify-content:center;min-height:30px;padding-right:100px}
+    td.c-qty{position:absolute;top:13px;right:14px}
+    td.c-qty::before{display:none}
+    tfoot td.c-qty{flex-direction:row;align-items:baseline;top:16px;right:16px}
+    tfoot td.c-qty::before{display:inline;margin-right:6px}
+    tbody td.c-net,tfoot td.c-net{grid-column:span 3;align-items:flex-end;text-align:right}
+    .yieldcell{margin:0 -4px}
+    .chartwrap{height:220px}
+    .chartcard{padding:14px 14px 10px}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    [data-state="live"] .livedot,.chartwrap .cpulse,.chartwrap.skeleton::after{animation:none}
+    .flash-up,.flash-down{animation:none}
+  }
 </style>
 </head>
 <body>
@@ -265,33 +451,34 @@
         <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <span id="themeLabel">Light</span>
       </button>
-      <div class="pricebadge">
-        <div class="lab">PRL price</div>
-        <div class="val">$<span id="badgePrice">1.45</span> <small>USDT</small></div>
+      <div class="pricebadge" id="badge" data-state="loading">
+        <div class="lab"><span class="livedot" aria-hidden="true"></span><span>PRL market</span><span class="bage" id="badgeAge"></span></div>
+        <div class="val"><span id="badgePrice">—</span> <small>USDT</small></div>
+        <div class="bsub"><span class="chg" id="badgeChg"></span><svg id="badgeSpark" viewBox="0 0 84 22" aria-hidden="true"></svg></div>
       </div>
     </div>
   </header>
 
-  <section class="controls">
+  <section class="controls" id="controls">
     <div class="ctl">
-      <div class="top"><label>PRL price (USDT)</label><input class="num" id="priceNum" type="number" step="0.01" value="1.45" /></div>
-      <input type="range" id="priceRange" min="0.10" max="5" step="0.01" value="1.45" />
-      <span class="hint" id="priceHint">Live market price · ATH $1.65 (29 May 2026)</span>
+      <div class="top"><label for="priceNum">PRL price (USDT)</label><input class="num" id="priceNum" type="number" step="0.01" value="1.45" /></div>
+      <div class="rangebox"><input type="range" id="priceRange" min="0.10" max="5" step="0.01" value="1.45" aria-label="PRL price" /><span class="livetick" id="priceTick" hidden></span></div>
+      <div class="hint" id="priceHint">Live market price</div>
     </div>
     <div class="ctl">
-      <div class="top"><label>Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
-      <input type="range" id="diffRange" min="0.25" max="8" step="0.05" value="1.00" />
-      <span class="hint" id="diffHint">×1.00 = current 18.1M difficulty. 2× hashrate → half yield</span>
+      <div class="top"><label for="diffNum" title="×1.00 = 18.1M network difficulty (17 Jun 2026). 2× hashrate → half yield">Network difficulty ×</label><input class="num" id="diffNum" type="number" step="0.05" value="1.00" /></div>
+      <div class="rangebox"><input type="range" id="diffRange" min="0.25" max="8" step="0.05" value="1.00" aria-label="Network difficulty multiplier" /><span class="livetick" id="diffTick" hidden></span></div>
+      <div class="hint" id="diffHint">×1.00 = current 18.1M difficulty. 2× hashrate → half yield</div>
     </div>
     <div class="ctl">
-      <div class="top"><label>Electricity $/kWh</label><input class="num" id="elecNum" type="number" step="0.01" value="0.10" /></div>
-      <input type="range" id="elecRange" min="0" max="0.6" step="0.01" value="0.10" />
-      <span class="hint">Affects self-mine net only</span>
+      <div class="top"><label for="elecNum">Electricity $/kWh</label><input class="num" id="elecNum" type="number" step="0.01" value="0.10" /></div>
+      <div class="rangebox"><input type="range" id="elecRange" min="0" max="0.6" step="0.01" value="0.10" aria-label="Electricity price per kWh" /></div>
+      <div class="hint">Affects self-mine net only</div>
     </div>
     <div class="ctl">
-      <div class="top"><label>Pool fee %</label><input class="num" id="feeNum" type="number" step="0.5" value="4" /></div>
-      <input type="range" id="feeRange" min="0" max="10" step="0.5" value="4" />
-      <span class="hint">Applied to break-even rental ceiling</span>
+      <div class="top"><label for="feeNum">Pool fee %</label><input class="num" id="feeNum" type="number" step="0.5" value="4" /></div>
+      <div class="rangebox"><input type="range" id="feeRange" min="0" max="10" step="0.5" value="4" aria-label="Pool fee percent" /></div>
+      <div class="hint">Applied to rent ceiling &amp; self-mine net</div>
     </div>
   </section>
 
@@ -300,25 +487,25 @@
       <table>
         <thead>
           <tr>
-            <th>GPU</th>
-            <th>Qty</th>
-            <th>Yield / day<br>(PRL)</th>
-            <th>Gross / day</th>
-            <th>Gross / h</th>
-            <th>Break-even<br>rent / h</th>
-            <th>Self-mine<br>net / day</th>
+            <th scope="col">GPU</th>
+            <th scope="col">Qty</th>
+            <th scope="col">Yield / day<br>(PRL)</th>
+            <th scope="col">Gross / day</th>
+            <th scope="col">Gross / h</th>
+            <th scope="col">Break-even<br>rent / h</th>
+            <th scope="col">Self-mine<br>net / day</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
         <tfoot>
           <tr>
             <td>Fleet total</td>
-            <td><span class="dim" id="fGpus">0</span></td>
-            <td><span class="dim" id="fYield">—</span></td>
-            <td class="big pearltext" id="fGrossDay">$0.00</td>
-            <td class="big" id="fGrossH">$0.00</td>
-            <td class="dim" id="fBlank">—</td>
-            <td class="big pos" id="fNet">$0.00</td>
+            <td class="c-qty" data-label="GPUs"><span class="dim" id="fGpus">0</span></td>
+            <td data-label="Yield PRL/day"><span class="dim" id="fYield">0.00</span></td>
+            <td class="big" data-label="Gross / day"><span class="pearltext" id="fGrossDay">$0.00</span></td>
+            <td class="big" data-label="Gross / h" id="fGrossH">$0.000</td>
+            <td class="breakeven" data-label="Break-even rent / h"><span class="pearltext" id="fBE">$0.000</span></td>
+            <td class="big pos c-net" data-label="Self-mine net / day" id="fNet">$0.00</td>
           </tr>
         </tfoot>
       </table>
@@ -346,21 +533,29 @@
 
   <div class="chartcard" id="chartCard">
     <div class="chead">
-      <h3><span class="dot"></span> PRL price history</h3>
-      <div class="ranges" id="ranges">
-        <button data-range="24h">24h</button>
-        <button data-range="7d" class="active">7d</button>
-        <button data-range="30d">30d</button>
-        <button data-range="all">All</button>
+      <div class="ctitle">
+        <h3><span class="dot"></span> PRL price history</h3>
+        <div class="cstats" id="cStats"></div>
+      </div>
+      <div class="cctl">
+        <button type="button" class="chipbtn" id="beToggle" aria-pressed="true" title="Show the PRL price at which each card stops covering its electricity"><span class="key" aria-hidden="true"></span>Break-even</button>
+        <div class="ranges" id="ranges">
+          <button type="button" data-range="24h">24h</button>
+          <button type="button" data-range="7d">7d</button>
+          <button type="button" data-range="30d">30d</button>
+          <button type="button" data-range="all">All</button>
+        </div>
       </div>
     </div>
-    <div class="chartwrap">
-      <svg id="chartSvg" viewBox="0 0 600 200" preserveAspectRatio="none" aria-label="PRL price history"></svg>
-      <div class="chart-msg" id="chartMsg">Loading…</div>
+    <div class="chartwrap" id="chartWrap">
+      <svg id="chartSvg" role="img" tabindex="0" aria-label="PRL price history"></svg>
+      <div class="ctip" id="chartTip" hidden></div>
+      <div class="chart-msg" id="chartMsg" style="display:none"></div>
     </div>
+    <p class="cnote" id="beNote"></p>
   </div>
 
-  <div class="toolbar"><button class="reset" id="resetBtn">Reset defaults</button></div>
+  <div class="toolbar"><button class="reset" id="resetBtn" type="button">Reset defaults</button></div>
 
   <div class="legend">
     <div class="note">
@@ -369,7 +564,8 @@
         <li><strong>Yield/day</strong> — base benchmark yield ÷ difficulty multiplier. Fixed by hardware, independent of token price.</li>
         <li><strong>Gross</strong> — yield × PRL price. Revenue before any costs.</li>
         <li><strong>Break-even rent/h</strong> — the max hourly rental a miner can pay and still profit (gross/h minus pool fee). Your pricing ceiling per card as a host.</li>
-        <li><strong>Self-mine net/day</strong> — running your own card, paying only electricity.</li>
+        <li><strong>Self-mine net/day</strong> — running your own card: gross minus pool fee, minus electricity.</li>
+        <li><strong>Live / manual</strong> — price and difficulty follow the market until you move their slider; <em>↺ Live</em> switches back.</li>
       </ul>
     </div>
     <div class="note">
@@ -377,7 +573,7 @@
       <ul>
         <li>Yields from hashrate.no PRL benchmarks, scaled to the current network difficulty (18.1M · 17 Jun 2026), Pearl Research Labs PRL — not the Solana "Perle" token.</li>
         <li><span class="chip chip-verified">Verified*</span> &nbsp;<strong>*</strong> yield from a real hashrate.no PRL benchmark, scaled to current difficulty.</li>
-        <li><span class="chip chip-est">Estimated*</span> &nbsp;<strong>*</strong> no verified PRL benchmark — yield scaled from tensor-core throughput and shown <span class="est-yield">(italic, in parentheses)</span>. Double-click any yield cell to override.</li>
+        <li><span class="chip chip-est">Estimated*</span> &nbsp;<strong>*</strong> no verified PRL benchmark — yield scaled from tensor-core throughput and shown <span class="est-yield">(italic, in parentheses)</span>. Click any yield to override it.</li>
         <li>PRL trades on a thin market (SafeTrade) — paper valuations may not clear at size.</li>
         <li>Network difficulty climbs fast (&gt;9 EH/s already). Push the slider up to stress-test.</li>
         <li>Not financial advice. DYOR.</li>
@@ -386,7 +582,7 @@
   </div>
 
   <footer>
-    PearlRate · open dashboard. Yields editable inline — double-tap a yield cell to override with your own benchmark.
+    PearlRate · open dashboard. Yields editable inline — click (or tap) a yield to override it with your own benchmark.
     <div class="disc">Data sourced from public mining benchmarks; figures are estimates and will drift with price and difficulty.</div>
   </footer>
 </div>
@@ -410,123 +606,360 @@
   ];
   const DEFAULTS = {price:1.45, diff:1.00, elec:0.10, fee:4};
 
+  // Live polling. /api/price is a single KV read and the Worker refreshes it
+  // every 5 min, so a 60 s poll (only while the tab is visible) keeps the page
+  // within a minute of the market. Difficulty moves slowly (hourly upstream).
+  const PRICE_POLL_MS = 60*1000;
+  const DIFF_POLL_MS = 10*60*1000;
+  const HISTORY_REFRESH_MS = 15*60*1000;
+  const HISTORY_TTL_MS = 5*60*1000;
+  // The Worker re-writes an unchanged value only on a heartbeat (price 30 min,
+  // difficulty 6 h), so "old" timestamps are normal up to roughly those.
+  const PRICE_STALE_MS = 45*60*1000;
+  const DIFF_STALE_MS = 8*60*60*1000;
+
   // ---- state (localStorage-guarded so it never throws in any sandbox) ----
   const store = {
     get(k,f){ try{const v=localStorage.getItem(k);return v===null?f:JSON.parse(v);}catch(e){return f;} },
     set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
   };
-  let S = store.get('pearlrate:state', {
-    price:DEFAULTS.price, diff:DEFAULTS.diff, elec:DEFAULTS.elec, fee:DEFAULTS.fee,
-    qty:{}, yields:{}
-  });
+  const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function freshState(){
+    return {price:DEFAULTS.price, diff:DEFAULTS.diff, elec:DEFAULTS.elec, fee:DEFAULTS.fee,
+            qty:{}, yields:{}, live:{price:true, diff:true}};
+  }
+  let S = store.get('pearlrate:state', null);
+  if(!S || typeof S!=='object') S = freshState();
   S.qty = S.qty || {}; S.yields = S.yields || {};
+  if(!S.live || typeof S.live!=='object') S.live = {price:true, diff:true};
+  Object.keys(DEFAULTS).forEach(k=>{ if(typeof S[k]!=='number' || !isFinite(S[k])) S[k]=DEFAULTS[k]; });
+
+  // Last live values seen — a reload shows real numbers before the fetch lands.
+  function priceRec(r){ return (r && isFinite(r.price) && r.price>0 && r.price<=1e6 && isFinite(r.ts)) ? r : null; }
+  function diffRec(r){ return (r && isFinite(r.mult) && r.mult>0 && r.mult<=100 && isFinite(r.ts)) ? r : null; }
+  const LIVE = {
+    price: priceRec(store.get('pearlrate:live-price', null)),
+    diff:  diffRec(store.get('pearlrate:live-diff', null)),
+    priceErr:false, diffErr:false
+  };
+  if(S.live.price && LIVE.price) S.price = LIVE.price.price;
+  if(S.live.diff && LIVE.diff) S.diff = LIVE.diff.mult;
 
   const $ = s => document.querySelector(s);
   const rowsEl = $('#rows');
-  const money = n => '$' + (Math.abs(n) < 0.005 ? '0.00' : n.toFixed(2));
-  const money3 = n => '$' + n.toFixed(2);
+  const BASE_TITLE = document.title;
+  let booted = false;
 
+  // ---- formatting ----
+  const nfCache = {};
+  function fmtNum(n,dp){
+    const f = nfCache[dp] || (nfCache[dp] = new Intl.NumberFormat('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}));
+    return f.format(n);
+  }
+  function usd(n,dp){
+    if(!isFinite(n)) return '—';
+    const a = Math.abs(n);
+    if(a < 0.5*Math.pow(10,-dp)) return '$'+fmtNum(0,dp);
+    return (n<0 ? '−$' : '$') + fmtNum(a,dp);
+  }
+  const money = n => usd(n,2);
+  // Hourly figures are small (a 3060 rents for cents/h), so they get 3 decimals.
+  const moneyH = n => usd(n, Math.abs(n)>=10 ? 2 : 3);
+  const fmtYield = v => fmtNum(v,2);
+  const fmtEst = v => '('+fmtNum(v,2)+')';
+  const pad = n => String(n).padStart(2,'0');
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtFull(t){
+    const d=new Date(t);
+    return DOW[d.getDay()]+' '+pad(d.getDate())+'.'+pad(d.getMonth()+1)+' · '+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+  function ago(ts){
+    const m = Math.max(0, Math.round((Date.now()-ts)/60000));
+    if(m<1) return 'just now';
+    if(m<60) return m+' min ago';
+    const h = Math.round(m/60);
+    return h<48 ? h+' h ago' : Math.round(h/24)+' d ago';
+  }
+
+  // ---- animated values: count-up on live changes, flash green/red ----
+  function setVal(el, v, f, o){
+    const prev = el._v, txt = f(v);
+    el._v = v;
+    if(el._raf){ cancelAnimationFrame(el._raf); el._raf=0; }
+    if(o && o.animate && !reduceMotion && typeof prev==='number' && isFinite(prev) && f(prev)!==txt){
+      const t0 = performance.now(), dur = 550;
+      const step = now=>{
+        const k = Math.min(1,(now-t0)/dur), e = 1-Math.pow(1-k,3);
+        el.textContent = f(prev+(v-prev)*e);
+        el._raf = k<1 ? requestAnimationFrame(step) : 0;
+      };
+      el._raf = requestAnimationFrame(step);
+      if(o.flash) flash(el, v>prev);
+    } else {
+      el.textContent = txt;
+    }
+  }
+  function flash(el, up){
+    const t = el.closest('td,.val') || el;
+    t.classList.remove('flash-up','flash-down');
+    void t.offsetWidth;
+    t.classList.add(up ? 'flash-up' : 'flash-down');
+  }
+
+  // ---- economics ----
   function baseYield(c){ const o=S.yields[c.id]; return (typeof o==='number'&&isFinite(o))?o:c.yield; }
+  function hasOverride(id){ const o=S.yields[id]; return typeof o==='number' && isFinite(o); }
+  function calc(c, P){
+    const D=Math.max(0.01,S.diff), F=Math.min(1,Math.max(0,S.fee/100));
+    const eff=baseYield(c)/D;                  // PRL/day at chosen difficulty
+    const grossDay=eff*P;
+    const grossH=grossDay/24;
+    const be=grossH*(1-F);                     // break-even rental ceiling /h
+    const elecDay=(c.power/1000)*24*S.elec;
+    const net=grossDay*(1-F)-elecDay;          // self-mine net /day (the pool takes its fee here too)
+    const bePrice=(eff>0 && F<1) ? elecDay/(eff*(1-F)) : Infinity;  // PRL price where net = 0
+    return {eff, grossDay, grossH, be, net, bePrice};
+  }
+  function fleetAt(P){
+    let q=0, net=0;
+    DEFAULT_CARDS.forEach(c=>{ const n=S.qty[c.id]||0; if(n>0){ q+=n; net+=calc(c,P).net*n; } });
+    return {q, net};
+  }
+  // Cards drawn as break-even lines: your fleet, or the verified cards if it's empty.
+  function breakEvenSet(){
+    const fleet = DEFAULT_CARDS.filter(c=>(S.qty[c.id]||0)>0);
+    const cards = fleet.length ? fleet : DEFAULT_CARDS.filter(c=>!c.est);
+    return {
+      fleet: fleet.length>0,
+      lines: cards.map(c=>({name:c.name, short:c.name.replace(/^RTX\s+/,''), p:calc(c,1).bePrice}))
+                  .filter(b=>isFinite(b.p) && b.p>0)
+    };
+  }
+
+  // ---- table ----
+  const PEN = '<svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  let cells = {};
 
   function renderRows(){
-    rowsEl.innerHTML='';
+    rowsEl.innerHTML=''; cells={};
     DEFAULT_CARDS.forEach(c=>{
       const tr=document.createElement('tr');
+      tr.dataset.id=c.id;
       tr.innerHTML =
-        '<td><div class="gpu"><span class="nm">'+c.name+
+        '<td class="c-gpu"><div class="gpu"><span class="nm"><span class="nmt">'+c.name+'</span>'+
         (c.est
           ? ' <span class="chip chip-est">Estimated*</span>'
           : ' <span class="chip chip-verified">Verified*</span>')+
         '</span><span class="arch">'+c.arch+' · '+c.power+'W</span></div></td>'+
-        '<td><input class="qty" type="number" min="0" step="1" data-q="'+c.id+'" value="'+(S.qty[c.id]||0)+'"></td>'+
-        '<td><span class="yieldcell" data-y="'+c.id+'" title="double-click to edit"></span></td>'+
-        '<td data-grossday="'+c.id+'"></td>'+
-        '<td class="big" data-grossh="'+c.id+'"></td>'+
-        '<td class="breakeven pearltext" data-be="'+c.id+'"></td>'+
-        '<td data-net="'+c.id+'"></td>';
+        '<td class="c-qty" data-label="Qty"><span class="qtybox">'+
+          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="-1" aria-label="One fewer '+c.name+'">−</button>'+
+          '<input class="qty" type="number" inputmode="numeric" min="0" step="1" data-q="'+c.id+'" value="'+(S.qty[c.id]||0)+'" aria-label="'+c.name+' quantity">'+
+          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="1" aria-label="One more '+c.name+'">+</button>'+
+        '</span></td>'+
+        '<td class="c-yield" data-label="Yield PRL/day"><button type="button" class="yieldcell" data-y="'+c.id+'" aria-label="Edit '+c.name+' yield">'+PEN+'<span class="yv"></span></button></td>'+
+        '<td data-label="Gross / day"></td>'+
+        '<td class="big" data-label="Gross / h"></td>'+
+        '<td class="breakeven" data-label="Break-even rent / h"><span class="pearltext"></span></td>'+
+        '<td class="c-net" data-label="Self-mine net / day"></td>';
       rowsEl.appendChild(tr);
-    });
-    rowsEl.querySelectorAll('.qty').forEach(inp=>{
-      inp.addEventListener('input',()=>{ S.qty[inp.dataset.q]=Math.max(0,parseInt(inp.value||'0',10)); persist(); compute(); });
-    });
-    rowsEl.querySelectorAll('.yieldcell').forEach(cell=>{
-      cell.addEventListener('dblclick',()=>{
-        const id=cell.dataset.y, cur=baseYield(DEFAULT_CARDS.find(c=>c.id===id));
-        const v=prompt('Base yield PRL/day for this card (at the current network difficulty):', cur);
-        if(v!==null){ const n=parseFloat(v); if(isFinite(n)&&n>=0){ S.yields[id]=n; persist(); compute(); } }
-      });
+      const td=tr.children;
+      cells[c.id]={ybtn:td[2].firstChild, yv:td[2].querySelector('.yv'), gd:td[3], gh:td[4], be:td[5].firstChild, net:td[6]};
     });
   }
 
-  function compute(){
-    const P=S.price, D=Math.max(0.01,S.diff), E=S.elec, F=S.fee/100;
-    let tQty=0,tGrossDay=0,tGrossH=0,tNet=0;
+  function setQty(id, v, syncInput){
+    const n = Math.max(0, Math.min(9999, parseInt(v,10)||0));
+    S.qty[id]=n;
+    if(syncInput){ const inp=rowsEl.querySelector('.qty[data-q="'+id+'"]'); if(inp) inp.value=n; }
+    persist(); compute({animate:true});
+  }
+  rowsEl.addEventListener('input',e=>{
+    const inp=e.target.closest('.qty'); if(inp) setQty(inp.dataset.q, inp.value, false);
+  });
+  rowsEl.addEventListener('click',e=>{
+    const b=e.target.closest('.qbtn');
+    if(b){ setQty(b.dataset.q, (S.qty[b.dataset.q]||0)+Number(b.dataset.step), true); return; }
+    const y=e.target.closest('.yieldcell');
+    if(y) startYieldEdit(y.dataset.y);
+  });
+
+  // Inline yield override (replaces the old double-click + prompt()).
+  // The value edited is the base yield at ×1.00 difficulty; clear it to restore the default.
+  function startYieldEdit(id){
+    const c=DEFAULT_CARDS.find(x=>x.id===id), td=cells[id] && cells[id].ybtn.parentNode;
+    if(!c || !td || td.classList.contains('editing')) return;
+    const inp=document.createElement('input');
+    inp.type='number'; inp.min='0'; inp.step='0.01'; inp.className='yieldedit';
+    inp.value=String(baseYield(c)); inp.placeholder=String(c.yield);
+    inp.setAttribute('aria-label', c.name+' base yield, PRL/day at ×1.00 difficulty — clear to restore '+c.yield);
+    const cap=document.createElement('span');
+    cap.className='yieldcap'; cap.textContent='PRL/day @ ×1.00 · clear = default';
+    td.classList.add('editing'); td.appendChild(inp); td.appendChild(cap);
+    inp.focus(); inp.select();
+    let done=false;
+    const finish=(save, refocus)=>{
+      if(done) return; done=true;
+      if(save){
+        const raw=inp.value.trim(), n=parseFloat(raw);
+        if(raw==='' || (isFinite(n) && Math.abs(n-c.yield)<1e-9)) delete S.yields[id];
+        else if(isFinite(n) && n>=0) S.yields[id]=n;
+        persist();
+      }
+      inp.remove(); cap.remove(); td.classList.remove('editing');
+      compute();
+      if(refocus) cells[id].ybtn.focus();
+    };
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.preventDefault(); finish(true,true); }
+      else if(e.key==='Escape'){ e.preventDefault(); finish(false,true); }
+    });
+    inp.addEventListener('blur',()=>finish(true,false));
+  }
+
+  function compute(o){
+    o=o||{};
+    let tQty=0,tYield=0,tGrossDay=0,tGrossH=0,tBE=0,tNet=0;
     DEFAULT_CARDS.forEach(c=>{
-      const by=baseYield(c);
-      const eff=by/D;                       // PRL/day at chosen difficulty
-      const grossDay=eff*P;
-      const grossH=grossDay/24;
-      const be=grossH*(1-F);                 // break-even rental ceiling /h
-      const elecDay=(c.power/1000)*24*E;
-      const net=grossDay-elecDay;            // self-mine net /day
-      const q=S.qty[c.id]||0;
-
-      const yc=$('[data-y="'+c.id+'"]');
-      yc.textContent = c.est ? '('+eff.toFixed(2)+')' : eff.toFixed(2);
-      yc.classList.toggle('est-yield', !!c.est);
-      $('[data-grossday="'+c.id+'"]').textContent = money(grossDay);
-      $('[data-grossh="'+c.id+'"]').textContent = money3(grossH);
-      $('[data-be="'+c.id+'"]').textContent = money3(be);
-      const netCell=$('[data-net="'+c.id+'"]');
-      netCell.textContent = money(net);
-      netCell.className = net>=0 ? 'pos':'neg';
-
-      tQty+=q; tGrossDay+=grossDay*q; tGrossH+=grossH*q; tNet+=net*q;
+      const r=calc(c,S.price), q=S.qty[c.id]||0, x=cells[c.id];
+      const custom=hasOverride(c.id), est=c.est && !custom;
+      x.ybtn.classList.toggle('est-yield', est);
+      x.ybtn.classList.toggle('custom', custom);
+      x.ybtn.title = custom ? 'Your override — click to edit, clear it to restore the default' : 'Click to override with your own benchmark';
+      setVal(x.yv, r.eff, est ? fmtEst : fmtYield, o);
+      setVal(x.gd, r.grossDay, money, o);
+      setVal(x.gh, r.grossH, moneyH, o);
+      setVal(x.be, r.be, moneyH, o);
+      setVal(x.net, r.net, money, o);
+      x.net.classList.toggle('pos', r.net>=0);
+      x.net.classList.toggle('neg', r.net<0);
+      tQty+=q; tYield+=r.eff*q; tGrossDay+=r.grossDay*q; tGrossH+=r.grossH*q; tBE+=r.be*q; tNet+=r.net*q;
     });
-    $('#fGpus').textContent=tQty;
-    $('#fGrossDay').textContent=money(tGrossDay);
-    $('#fGrossH').textContent=money3(tGrossH);
-    $('#fNet').textContent=money(tNet);
-    $('#fNet').className='big '+(tNet>=0?'pos':'neg');
-    $('#badgePrice').textContent=P.toFixed(2);
+    setVal($('#fGpus'), tQty, v=>String(Math.round(v)), o);
+    setVal($('#fYield'), tYield, fmtYield, o);
+    setVal($('#fGrossDay'), tGrossDay, money, o);
+    setVal($('#fGrossH'), tGrossH, moneyH, o);
+    setVal($('#fBE'), tBE, moneyH, o);
+    const fNet=$('#fNet');
+    setVal(fNet, tNet, money, o);
+    fNet.classList.toggle('pos', tNet>=0);
+    fNet.classList.toggle('neg', tNet<0);
+    updateTicks();
+    drawChart();
   }
 
-  // ---- bind paired range+number controls ----
-  function bindPair(key, rangeId, numId, dp){
+  // ---- paired range+number controls, with live/manual mode for price & difficulty ----
+  const CTRL = {};
+  function paintRange(r){
+    const min=Number(r.min), max=Number(r.max), v=Number(r.value);
+    r.style.setProperty('--fill', (Math.max(0,Math.min(1,(v-min)/(max-min)))*100)+'%');
+  }
+  function syncControl(key){
+    const c=CTRL[key];
+    c.r.value=S[key];
+    c.n.value=c.dp!=null?Number(S[key]).toFixed(c.dp):S[key];
+    paintRange(c.r);
+  }
+  function bindPair(key, rangeId, numId, dp, tickId){
     const r=$(rangeId), n=$(numId);
+    CTRL[key]={r, n, dp, tick: tickId ? $(tickId) : null};
     const set=(val,from)=>{
       val=parseFloat(val); if(!isFinite(val))return;
       S[key]=val;
+      if(key in S.live) S.live[key]=false;   // touching the control = manual mode
       if(from!=='range') r.value=val;
       if(from!=='num')   n.value=dp!=null?val.toFixed(dp):val;
-      persist(); compute();
+      paintRange(r);
+      persist(); compute(); renderHints();
     };
-    r.value=S[key]; n.value=dp!=null?Number(S[key]).toFixed(dp):S[key];
+    syncControl(key);
     r.addEventListener('input',()=>set(r.value,'range'));
     n.addEventListener('input',()=>set(n.value,'num'));
   }
+  function goLive(key){
+    S.live[key]=true;
+    const rec=LIVE[key];
+    if(rec) S[key] = key==='price' ? rec.price : rec.mult;
+    syncControl(key); persist(); compute({animate:true}); renderHints();
+    CTRL[key].r.focus();
+  }
+  $('#controls').addEventListener('click',e=>{
+    const b=e.target.closest('.golive'); if(b) goLive(b.dataset.live);
+  });
+  // Marker on the slider track for the live value while in manual mode.
+  function updateTicks(){
+    ['price','diff'].forEach(key=>{
+      const c=CTRL[key]; if(!c || !c.tick) return;
+      const rec=LIVE[key], show=!!(rec && !S.live[key]);
+      c.tick.hidden=!show;
+      if(show){
+        const v = key==='price' ? rec.price : rec.mult;
+        const f = (v-Number(c.r.min))/(Number(c.r.max)-Number(c.r.min));
+        c.tick.style.setProperty('--f', Math.max(0,Math.min(1,f)));
+        c.tick.title = 'Live: '+(key==='price' ? '$'+v.toFixed(2) : '×'+v.toFixed(2));
+      }
+    });
+  }
+
+  function provLabel(src){
+    const prov=String(src||'').split(':')[0];
+    return prov ? prov.charAt(0).toUpperCase()+prov.slice(1) : 'Live';
+  }
+  function renderHint(key){
+    const el = key==='price' ? $('#priceHint') : $('#diffHint');
+    const rec = LIVE[key], stale = key==='price' ? PRICE_STALE_MS : DIFF_STALE_MS;
+    let mode, text, isStale=false;
+    if(rec && S.live[key]){
+      mode='live'; isStale=Date.now()-rec.ts>stale;
+      text = key==='price'
+        ? 'Live · '+provLabel(rec.source)+' · '+ago(rec.ts)
+        : 'Live ×'+rec.mult.toFixed(2)+(rec.difficulty ? ' · '+(rec.difficulty/1e6).toFixed(1)+'M' : '')+' · '+ago(rec.ts);
+    } else if(rec){
+      mode='manual';
+      text = 'Manual · '+(key==='price' ? 'market $'+rec.price.toFixed(2) : 'network ×'+rec.mult.toFixed(2));
+    } else {
+      mode='none';
+      text = key==='price'
+        ? (LIVE.priceErr ? 'Live price unavailable — using this value' : 'Fetching live market price…')
+        : '×1.00 = current 18.1M difficulty. 2× hashrate → half yield';
+    }
+    // Rebuild only on change, so the periodic refresh never steals keyboard focus.
+    const sig=mode+'|'+isStale+'|'+text;
+    if(el._sig===sig) return;
+    el._sig=sig; el.textContent='';
+    if(mode==='live'){ const d=document.createElement('span'); d.className='hdot'+(isStale?' stale':''); el.appendChild(d); }
+    const s=document.createElement('span'); s.textContent=text; el.appendChild(s);
+    if(mode==='manual'){
+      const b=document.createElement('button');
+      b.type='button'; b.className='golive'; b.dataset.live=key; b.textContent='↺ Live';
+      b.setAttribute('aria-label','Follow the live '+(key==='price'?'market price':'network difficulty')+' again');
+      el.appendChild(b);
+    }
+  }
+  function renderHints(){ renderHint('price'); renderHint('diff'); }
 
   let saveTimer=null;
   function persist(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>store.set('pearlrate:state',S),250); }
 
   $('#resetBtn').addEventListener('click',()=>{
-    S={price:DEFAULTS.price,diff:DEFAULTS.diff,elec:DEFAULTS.elec,fee:DEFAULTS.fee,qty:{},yields:{}};
+    S=freshState();
+    if(LIVE.price) S.price=LIVE.price.price;
+    if(LIVE.diff) S.diff=LIVE.diff.mult;
     store.set('pearlrate:state',S);
     renderRows();
-    $('#priceRange').value=S.price; $('#priceNum').value=S.price.toFixed(2);
-    $('#diffRange').value=S.diff;   $('#diffNum').value=S.diff.toFixed(2);
-    $('#elecRange').value=S.elec;   $('#elecNum').value=S.elec.toFixed(2);
-    $('#feeRange').value=S.fee;     $('#feeNum').value=S.fee;
+    ['price','diff','elec','fee'].forEach(syncControl);
+    renderHints();
     compute();
   });
 
-  // ---- theme toggle (warm light / dark), persisted ----
+  // ---- theme toggle (warm light / dark), persisted; initial theme set in <head> ----
   const themeBtn=$('#themeBtn'), themeLabel=$('#themeLabel');
   function applyTheme(t){
     document.documentElement.setAttribute('data-theme', t==='light'?'light':'dark');
     themeLabel.textContent = (t==='light') ? 'Dark' : 'Light';
   }
-  let theme = store.get('pearlrate:theme','dark');
+  let theme = document.documentElement.getAttribute('data-theme')==='light' ? 'light' : 'dark';
   applyTheme(theme);
   themeBtn.addEventListener('click',()=>{
     theme = (theme==='light') ? 'dark' : 'light';
@@ -534,153 +967,504 @@
     applyTheme(theme);
   });
 
-  renderRows();
-  bindPair('price','#priceRange','#priceNum',2);
-  bindPair('diff','#diffRange','#diffNum',2);
-  bindPair('elec','#elecRange','#elecNum',2);
-  bindPair('fee','#feeRange','#feeNum',null);
-  compute();
-
-  // ---- live PRL price (Cloudflare KV via /api/price), best-effort ----
-  function applyLivePrice(p){
-    if(!isFinite(p) || p<=0 || p>1e6) return;
-    S.price=p;
-    $('#priceRange').value=p; $('#priceNum').value=p.toFixed(2);
-    persist(); compute();
+  // ---- live market badge: price, 24h change, sparkline ----
+  const badge=$('#badge'), badgePrice=$('#badgePrice'), badgeAge=$('#badgeAge');
+  function renderBadge(prevPrice){
+    const rec=LIVE.price;
+    badge.dataset.state = rec ? (Date.now()-rec.ts>PRICE_STALE_MS ? 'stale' : 'live') : (LIVE.priceErr ? 'off' : 'loading');
+    badgeAge.textContent = rec ? ago(rec.ts) : (LIVE.priceErr ? 'offline' : '');
+    if(rec){
+      const moved = prevPrice!=null && prevPrice!==rec.price;
+      setVal(badgePrice, rec.price, v=>'$'+v.toFixed(2), {animate:moved, flash:moved});
+    } else {
+      badgePrice.textContent='—';
+    }
   }
-  (function fetchLivePrice(){
-    if(!('fetch' in window)) return;
-    const ctrl = ('AbortController' in window) ? new AbortController() : null;
-    if(ctrl) setTimeout(()=>ctrl.abort(), 6000);
-    fetch('/api/price', {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
-      .then(r=> r.ok ? r.json() : Promise.reject())
-      .then(d=>{
-        const p = parseFloat(d && d.price);
-        if(!isFinite(p)) return;
-        applyLivePrice(p);
-        const hint=$('#priceHint');
-        if(hint && d.ts){
-          const mins = Math.max(0, Math.round((Date.now()-d.ts)/60000));
-          const prov = String(d.source||'').split(':')[0];
-          const label = prov ? prov.charAt(0).toUpperCase()+prov.slice(1) : 'Live';
-          hint.textContent = label+' · '+(mins<1?'updated just now':'updated '+mins+' min ago');
-        }
-      })
-      .catch(()=>{});  // offline / endpoint not set up yet -> keep default
-  })();
-
-  // ---- live network difficulty (Cloudflare KV via /api/difficulty), best-effort ----
-  function applyLiveDiff(m){
-    if(!isFinite(m) || m<=0 || m>100) return;
-    S.diff=m;
-    $('#diffRange').value=m; $('#diffNum').value=m.toFixed(2);
-    persist(); compute();
+  function updateTitle(pct){
+    const rec=LIVE.price;
+    if(!rec){ document.title=BASE_TITLE; return; }
+    document.title = '$'+rec.price.toFixed(2)+(pct==null ? '' : ' '+(pct>=0?'▲':'▼')+Math.abs(pct).toFixed(1)+'%')+' · PearlRate';
   }
-  (function fetchLiveDiff(){
-    if(!('fetch' in window)) return;
+  function spark(){
+    const c=chart.cache['24h'], pts=withLiveTail(c ? c.points : null);
+    const svg=$('#badgeSpark'), chg=$('#badgeChg');
+    if(!pts || pts.length<2){ svg.innerHTML=''; chg.textContent=''; updateTitle(null); return; }
+    const w=84, h=22;
+    let lo=Infinity, hi=-Infinity;
+    pts.forEach(p=>{ if(p.p<lo)lo=p.p; if(p.p>hi)hi=p.p; });
+    if(hi===lo){ hi+=0.01; lo-=0.01; }
+    const t0=pts[0].t, tSpan=Math.max(1,pts[pts.length-1].t-t0);
+    let d='';
+    pts.forEach((p,i)=>{ d+=(i?' L':'M')+((p.t-t0)/tSpan*w).toFixed(1)+' '+(2+(1-(p.p-lo)/(hi-lo))*(h-4)).toFixed(1); });
+    const first=pts[0].p, last=pts[pts.length-1].p, pct=(last-first)/first*100, up=pct>=0;
+    svg.innerHTML='<path class="spk '+(up?'up':'down')+'" d="'+d+'"/>';
+    chg.textContent=(up?'▲ ':'▼ ')+Math.abs(pct).toFixed(2)+'% · 24h';
+    chg.className='chg '+(up?'up':'down');
+    updateTitle(pct);
+  }
+
+  // ---- live data fetching ----
+  function fetchJSON(url, ms){
+    if(!('fetch' in window)) return Promise.reject(0);
     const ctrl = ('AbortController' in window) ? new AbortController() : null;
-    if(ctrl) setTimeout(()=>ctrl.abort(), 6000);
-    fetch('/api/difficulty', {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
-      .then(r=> r.ok ? r.json() : Promise.reject())
+    const timer = ctrl ? setTimeout(()=>ctrl.abort(), ms) : 0;
+    return fetch(url, {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
+      .then(r=>{ clearTimeout(timer); return r.ok ? r.json() : Promise.reject(r.status); },
+            e=>{ clearTimeout(timer); throw e; });
+  }
+
+  let lastPriceFetch=0, lastDiffFetch=0, lastHistoryRefresh=Date.now();
+  function refreshPrice(){
+    lastPriceFetch=Date.now();
+    fetchJSON('/api/price', 6000)
       .then(d=>{
-        const m = parseFloat(d && d.mult);
-        if(!isFinite(m)) return;
-        applyLiveDiff(m);
-        const hint=$('#diffHint');
-        if(hint && d.ts){
-          const mins = Math.max(0, Math.round((Date.now()-d.ts)/60000));
-          const when = mins<1 ? 'updated just now' : 'updated '+mins+' min ago';
-          hint.textContent = 'Live difficulty ×'+m.toFixed(2)+' · '+when;
-        }
+        const rec=priceRec({price:parseFloat(d && d.price), ts:Number(d && d.ts)||Date.now(), source:d && d.source ? String(d.source) : ''});
+        if(!rec) throw 0;
+        onLivePrice(rec);
       })
-      .catch(()=>{});  // offline / endpoint not set up yet -> keep default
-  })();
+      .catch(()=>{ LIVE.priceErr=true; renderBadge(); renderHint('price'); });  // offline / endpoint not set up -> keep value
+  }
+  function onLivePrice(rec){
+    const prev=LIVE.price;
+    LIVE.price=rec; LIVE.priceErr=false;
+    store.set('pearlrate:live-price', rec);
+    if(S.live.price && S.price!==rec.price){
+      S.price=rec.price; syncControl('price'); persist();
+      compute({animate:booted, flash:booted && !!prev});
+    } else {
+      updateTicks(); drawChart();
+    }
+    renderBadge(prev ? prev.price : null);
+    renderHint('price');
+    spark();
+  }
+  function refreshDiff(){
+    lastDiffFetch=Date.now();
+    fetchJSON('/api/difficulty', 6000)
+      .then(d=>{
+        const rec=diffRec({mult:parseFloat(d && d.mult), ts:Number(d && d.ts)||Date.now(),
+                           difficulty:Number(d && d.difficulty)||null, source:d && d.source ? String(d.source) : ''});
+        if(!rec) throw 0;
+        onLiveDiff(rec);
+      })
+      .catch(()=>{ LIVE.diffErr=true; renderHint('diff'); });
+  }
+  function onLiveDiff(rec){
+    const prev=LIVE.diff;
+    LIVE.diff=rec; LIVE.diffErr=false;
+    store.set('pearlrate:live-diff', rec);
+    if(S.live.diff && S.diff!==rec.mult){
+      S.diff=rec.mult; syncControl('diff'); persist();
+      compute({animate:booted, flash:booted && !!prev});
+    } else {
+      updateTicks();
+    }
+    renderHint('diff');
+  }
 
   // ---- price history chart (D1 via /api/history) ----
-  const chartSvg=$('#chartSvg'), chartMsg=$('#chartMsg');
-  let chartRange='7d', chartData=null;
+  const chartSvg=$('#chartSvg'), chartMsg=$('#chartMsg'), chartWrap=$('#chartWrap'), chartTip=$('#chartTip');
+  const cStats=$('#cStats'), beNote=$('#beNote'), beToggle=$('#beToggle');
+  const RANGE_LABEL={'24h':'24 h','7d':'7 days','30d':'30 days','all':'all time'};
+  const chart={
+    range:store.get('pearlrate:range','7d'), cache:{}, pending:{}, data:null, seq:0,
+    animate:true, hover:-1, geo:null, be:store.get('pearlrate:be',true)!==false, tipTimer:0
+  };
+  if(!RANGE_LABEL[chart.range]) chart.range='7d';
 
-  function fmtTime(t, range){
-    const d=new Date(t);
-    const p=n=>String(n).padStart(2,'0');
-    return range==='24h'
-      ? p(d.getHours())+':'+p(d.getMinutes())
-      : p(d.getDate())+'.'+p(d.getMonth()+1);
+  function setMsg(text){
+    if(text==null){ chartMsg.style.display='none'; return; }
+    chartMsg.textContent=text; chartMsg.style.display='flex';
+  }
+  function fetchHistory(range){
+    const c=chart.cache[range];
+    if(c && Date.now()-c.at<HISTORY_TTL_MS) return Promise.resolve(c.points);
+    if(chart.pending[range]) return chart.pending[range];
+    const p=fetchJSON('/api/history?range='+range, 8000).then(d=>{
+      const pts=((d && d.points) || [])
+        .map(x=>({t:Number(x.t), p:Number(x.p)}))
+        .filter(x=>isFinite(x.t) && isFinite(x.p) && x.p>0);
+      chart.cache[range]={at:Date.now(), points:pts};
+      return pts;
+    });
+    chart.pending[range]=p;
+    const clear=()=>{ delete chart.pending[range]; };
+    p.then(clear,clear);
+    return p;
+  }
+  // History is bucketed on the server; the newest live price extends the line to "now".
+  function withLiveTail(pts){
+    if(!pts || !pts.length) return pts;
+    const rec=LIVE.price, last=pts[pts.length-1];
+    return (rec && rec.ts>last.t) ? pts.concat([{t:rec.ts, p:rec.price}]) : pts;
+  }
+  function niceStep(span, count){
+    const raw=span/Math.max(1,count), mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag;
+    return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag;
+  }
+  const HOUR=36e5, DAY=864e5;
+  const TSTEPS=[[1,'h'],[2,'h'],[3,'h'],[6,'h'],[12,'h'],[1,'d'],[2,'d'],[3,'d'],[7,'d'],[14,'d'],[1,'m'],[2,'m'],[3,'m'],[6,'m'],[12,'m']];
+  function timeTicks(t0, t1, maxN){
+    const span=t1-t0, ms=s=>s[0]*(s[1]==='h'?HOUR:s[1]==='d'?DAY:30*DAY);
+    const s=TSTEPS.find(x=>span/ms(x)<=maxN) || TSTEPS[TSTEPS.length-1];
+    const d=new Date(t0);
+    if(s[1]==='h'){ d.setMinutes(0,0,0); d.setHours(d.getHours()-d.getHours()%s[0]); }
+    else { d.setHours(0,0,0,0); if(s[1]==='m') d.setDate(1); }
+    const out=[];
+    for(let guard=0; d.getTime()<=t1 && guard<400; guard++){
+      if(d.getTime()>=t0){
+        const midnight=d.getHours()===0 && d.getMinutes()===0;
+        out.push({t:d.getTime(), label: s[1]==='m' ? MON[d.getMonth()]+(d.getMonth()===0?' '+d.getFullYear():'')
+                                 : (s[1]==='h' && !midnight) ? pad(d.getHours())+':'+pad(d.getMinutes())
+                                 : pad(d.getDate())+'.'+pad(d.getMonth()+1)});
+      }
+      if(s[1]==='h') d.setHours(d.getHours()+s[0]);
+      else if(s[1]==='d') d.setDate(d.getDate()+s[0]);
+      else d.setMonth(d.getMonth()+s[0]);
+    }
+    return out;
+  }
+  // Split the series where the updater was down, instead of bridging the hole.
+  function splitGaps(pts){
+    const dts=[];
+    for(let i=1;i<pts.length;i++) dts.push(pts[i].t-pts[i-1].t);
+    dts.sort((a,b)=>a-b);
+    const gap=Math.max((dts[dts.length>>1]||0)*4, 45*60*1000);
+    const segs=[[pts[0]]];
+    for(let i=1;i<pts.length;i++){
+      if(pts[i].t-pts[i-1].t>gap) segs.push([]);
+      segs[segs.length-1].push(pts[i]);
+    }
+    return segs;
   }
 
   function drawChart(){
-    if(!chartData || chartData.length<2){
-      chartSvg.innerHTML='';
-      chartMsg.textContent = (chartData && chartData.length<2)
-        ? 'Not enough data yet — points appear as the updater runs.'
-        : 'No data yet.';
-      chartMsg.style.display='flex';
+    const pts=withLiveTail(chart.data);
+    if(!pts || pts.length<2){
+      chart.geo=null; chartSvg.innerHTML=''; cStats.textContent=''; hideHover();
+      if(chart.data) setMsg(chart.data.length ? 'Not enough data yet — points appear as the updater runs.' : 'No data yet.');
+      renderBeNote(null);
       return;
     }
-    chartMsg.style.display='none';
-
-    const W=Math.max(320, chartSvg.clientWidth||600), H=200;
-    const padL=46, padR=14, padT=14, padB=22;
+    const W=chartSvg.clientWidth, H=chartSvg.clientHeight;
+    if(W<80 || H<80) return;
+    setMsg(null);
     chartSvg.setAttribute('viewBox','0 0 '+W+' '+H);
 
-    const pts=chartData;
-    const t0=pts[0].t, t1=pts[pts.length-1].t, tSpan=Math.max(1,t1-t0);
-    let pMin=Infinity, pMax=-Infinity;
-    pts.forEach(p=>{ if(p.p<pMin)pMin=p.p; if(p.p>pMax)pMax=p.p; });
-    if(pMin===pMax){ pMin-=pMin*0.02||0.01; pMax+=pMax*0.02||0.01; }
-    const pSpan=pMax-pMin;
+    const padL=48, padR=58, padT=14, padB=24;
+    const plotW=W-padL-padR, plotH=H-padT-padB, yBot=padT+plotH;
+    const n=pts.length, t0=pts[0].t, t1=pts[n-1].t, tSpan=Math.max(1,t1-t0);
+    let iMin=0, iMax=0;
+    for(let i=1;i<n;i++){ if(pts[i].p<pts[iMin].p) iMin=i; if(pts[i].p>pts[iMax].p) iMax=i; }
+    const dMin=pts[iMin].p, dMax=pts[iMax].p;
 
-    const X=t=>padL+(t-t0)/tSpan*(W-padL-padR);
-    const Y=p=>padT+(1-(p-pMin)/pSpan)*(H-padT-padB);
+    // Break-even reference lines. Ones far outside the price band would flatten
+    // the line, so they're listed at the chart edge instead of drawn.
+    const beSet = chart.be ? breakEvenSet() : null;
+    const margin = Math.max(dMax-dMin, dMax*0.15);
+    const beIn=[], beBelow=[], beAbove=[];
+    if(beSet) beSet.lines.forEach(b=>{ (b.p<dMin-margin ? beBelow : b.p>dMax+margin ? beAbove : beIn).push(b); });
+    renderBeNote(beSet);
 
-    let line='M'+X(pts[0].t).toFixed(1)+' '+Y(pts[0].p).toFixed(1);
-    for(let i=1;i<pts.length;i++) line+=' L'+X(pts[i].t).toFixed(1)+' '+Y(pts[i].p).toFixed(1);
-    const area=line+' L'+X(t1).toFixed(1)+' '+(H-padB)+' L'+X(t0).toFixed(1)+' '+(H-padB)+' Z';
+    let lo=dMin, hi=dMax;
+    beIn.forEach(b=>{ lo=Math.min(lo,b.p); hi=Math.max(hi,b.p); });
+    const padV=Math.max((hi-lo)*0.08, hi*0.005, 0.001);
+    lo=Math.max(0,lo-padV); hi+=padV;
+    const step=niceStep(hi-lo, plotH<170 ? 3 : 4);
+    lo=Math.max(0,Math.floor(lo/step)*step); hi=Math.ceil(hi/step)*step;
+    if(hi<=lo) hi=lo+step;
+    const X=t=>padL+(t-t0)/tSpan*plotW, Y=p=>padT+(1-(p-lo)/(hi-lo))*plotH;
+    let dp=2;
+    while(dp<5 && Math.abs(step*Math.pow(10,dp)-Math.round(step*Math.pow(10,dp)))>1e-6) dp++;
+    const f1=v=>v.toFixed(1);
 
-    const last=pts[pts.length-1].p;
-    const gridY=p=>'<line x1="'+padL+'" y1="'+Y(p).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(p).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'+
-      '<text class="axlab" x="'+(padL-6)+'" y="'+(Y(p)+3).toFixed(1)+'" text-anchor="end">$'+p.toFixed(2)+'</text>';
+    const out=['<defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="cg-a"/><stop offset="1" class="cg-b"/></linearGradient></defs>'];
+    for(let k=0;k<40;k++){
+      const v=lo+k*step; if(v>hi+step*1e-6) break;
+      const y=Y(v);
+      out.push('<line class="grid" x1="'+padL+'" x2="'+(padL+plotW)+'" y1="'+f1(y)+'" y2="'+f1(y)+'"/>'+
+               '<text class="axlab" x="'+(padL-8)+'" y="'+f1(y+3)+'" text-anchor="end">$'+v.toFixed(dp)+'</text>');
+    }
+    timeTicks(t0,t1,Math.max(2,Math.min(10,Math.floor(plotW/58)))).forEach(tk=>{
+      const x=f1(X(tk.t));
+      out.push('<line class="axis" x1="'+x+'" x2="'+x+'" y1="'+yBot+'" y2="'+(yBot+4)+'"/>'+
+               '<text class="axlab" x="'+x+'" y="'+(H-5)+'" text-anchor="middle">'+tk.label+'</text>');
+    });
+    out.push('<line class="axis" x1="'+padL+'" x2="'+(padL+plotW)+'" y1="'+yBot+'" y2="'+yBot+'"/>');
 
-    chartSvg.innerHTML=
-      '<defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">'+
-        '<stop offset="0%" stop-color="#7a52c0" stop-opacity="0.28"/>'+
-        '<stop offset="100%" stop-color="#7a52c0" stop-opacity="0"/>'+
-      '</linearGradient></defs>'+
-      gridY(pMax)+gridY(pMin)+
-      '<path d="'+area+'" fill="url(#cg)" stroke="none"/>'+
-      '<path d="'+line+'" fill="none" stroke="#7a52c0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'+
-      '<circle cx="'+X(t1).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="3.2" fill="#7a52c0"/>'+
-      '<text class="axlab" x="'+padL+'" y="'+(H-6)+'" text-anchor="start">'+fmtTime(t0,chartRange)+'</text>'+
-      '<text class="axlab" x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end">'+fmtTime(t1,chartRange)+'</text>';
+    // Loss zone: below the highest break-even price at least one card loses money.
+    if(beIn.length || beAbove.length){
+      const top = beAbove.length ? padT : Y(Math.max.apply(null, beIn.map(b=>b.p)));
+      out.push('<rect class="lossz" x="'+padL+'" y="'+f1(top)+'" width="'+plotW+'" height="'+f1(yBot-top)+'"/>');
+    }
+    beIn.forEach(b=>{ const y=f1(Y(b.p)); out.push('<line class="beline" x1="'+padL+'" x2="'+(padL+plotW)+'" y1="'+y+'" y2="'+y+'"/>'); });
+
+    const lines=[];
+    splitGaps(pts).forEach(seg=>{
+      if(seg.length<2){ out.push('<circle class="cdot" cx="'+f1(X(seg[0].t))+'" cy="'+f1(Y(seg[0].p))+'" r="1.8"/>'); return; }
+      let d='M'+f1(X(seg[0].t))+' '+f1(Y(seg[0].p));
+      for(let i=1;i<seg.length;i++) d+=' L'+f1(X(seg[i].t))+' '+f1(Y(seg[i].p));
+      out.push('<path class="carea" d="'+d+' L'+f1(X(seg[seg.length-1].t))+' '+yBot+' L'+f1(X(seg[0].t))+' '+yBot+' Z"/>');
+      lines.push(d);
+    });
+    lines.forEach(d=>out.push('<path class="cline" d="'+d+'"/>'));
+
+    // Break-even labels; lines closer than a label's height share one label.
+    const groups=[];
+    beIn.map(b=>({b, y:Y(b.p)})).sort((a,b)=>a.y-b.y).forEach(l=>{
+      const g=groups[groups.length-1];
+      if(g && l.y-g[g.length-1].y<13) g.push(l); else groups.push([l]);
+    });
+    const beLabel=(txt,x,y,cls)=>{
+      out.push('<rect class="belab-bg" x="'+f1(x-5)+'" y="'+f1(y-10)+'" width="'+Math.round(txt.length*6.05+10)+'" height="14" rx="4"/>'+
+               '<text class="'+cls+'" x="'+f1(x)+'" y="'+f1(y)+'">'+txt+'</text>');
+    };
+    groups.forEach(g=>{
+      const ps=g.map(l=>l.b.p), pLo=Math.min.apply(null,ps), pHi=Math.max.apply(null,ps);
+      const who = g.length===1 ? g[0].b.name : g.length===2 ? g[0].b.short+' / '+g[1].b.short : g.length+' cards';
+      const val = pLo.toFixed(2)===pHi.toFixed(2) ? '$'+pLo.toFixed(2) : '$'+pLo.toFixed(2)+'–'+pHi.toFixed(2);
+      let y=g[0].y-5;
+      if(y<padT+9) y=g[g.length-1].y+13;
+      beLabel(who+' · '+val, padL+9, y, 'belab');
+    });
+    const fits=t=>t.length*6.05+14<=plotW;
+    const cardsN=list=>list.length+' card'+(list.length>1?'s':'');
+    const edgeList=list=>list.map(b=>b.short+' $'+b.p.toFixed(2)).join(' · ');
+    if(beAbove.length){
+      const t='▲ break-even '+edgeList(beAbove)+' — loss at every price shown';
+      beLabel(fits(t) ? t : '▲ '+cardsN(beAbove)+' in loss at every price shown', padL+9, padT+11, 'beout');
+    }
+    if(beBelow.length){
+      const t='▼ break-even '+edgeList(beBelow);
+      beLabel(fits(t) ? t : '▼ '+cardsN(beBelow)+' break even ≤ $'+Math.max.apply(null,beBelow.map(b=>b.p)).toFixed(2), padL+9, yBot-6, 'beout');
+    }
+
+    // High / low markers and the live end point.
+    const last=pts[n-1], xl=X(last.t), yl=Y(last.p);
+    const extMark=(i, above, word)=>{
+      const p=pts[i], x=X(p.t), y=Y(p.p);
+      if(i===n-1 || (Math.abs(x-xl)<70 && Math.abs(y-yl)<16)) return;
+      const lx=Math.min(Math.max(x,padL+36),padL+plotW-36);
+      let ly = above ? y-8 : y+15;
+      if(above && ly<padT+6) ly=y+15;
+      if(!above && ly>yBot-2) ly=y-8;
+      out.push('<circle class="cext" cx="'+f1(x)+'" cy="'+f1(y)+'" r="3"/>'+
+               '<text class="extlab" x="'+f1(lx)+'" y="'+f1(ly)+'" text-anchor="middle">'+word+' $'+p.p.toFixed(2)+'</text>');
+    };
+    extMark(iMax,true,'High');
+    if(iMin!==iMax) extMark(iMin,false,'Low');
+    out.push('<circle class="cpulse" cx="'+f1(xl)+'" cy="'+f1(yl)+'" r="4"/>'+
+             '<circle class="cend" cx="'+f1(xl)+'" cy="'+f1(yl)+'" r="4"/>'+
+             '<text class="endlab" x="'+f1(xl+9)+'" y="'+f1(yl+4)+'">$'+last.p.toFixed(2)+'</text>');
+    out.push('<g class="chover" style="display:none"><line class="hx"/><circle class="hd" r="4.5"/></g>');
+    chartSvg.innerHTML=out.join('');
+
+    chart.geo={pts, X, Y, W, padL, padT, plotW, yBot, t0, tSpan};
+    renderStats(pts, iMin, iMax);
+
+    if(chart.animate && !reduceMotion){
+      chartSvg.querySelectorAll('.cline').forEach(path=>{
+        const len=path.getTotalLength();
+        path.style.strokeDasharray=len+' '+len;
+        path.style.strokeDashoffset=len;
+        path.getBoundingClientRect();
+        path.style.transition='stroke-dashoffset .9s cubic-bezier(.2,.7,.2,1)';
+        path.style.strokeDashoffset='0';
+      });
+      chartSvg.querySelectorAll('.carea').forEach(a=>{
+        a.style.opacity='0';
+        a.getBoundingClientRect();
+        a.style.transition='opacity .8s ease .25s';
+        a.style.opacity='1';
+      });
+    }
+    chart.animate=false;
+    if(chart.hover>=0) showHover(Math.min(chart.hover, n-1));
   }
 
+  function renderStats(pts, iMin, iMax){
+    const first=pts[0].p, last=pts[pts.length-1].p, pct=(last-first)/first*100, up=pct>=0;
+    const lab=RANGE_LABEL[chart.range];
+    cStats.innerHTML=
+      '<span class="cs-now">$'+last.toFixed(2)+'</span>'+
+      '<span class="chg '+(up?'up':'down')+'">'+(up?'▲ ':'▼ ')+Math.abs(pct).toFixed(2)+'%</span>'+
+      '<span class="cs-lab">'+lab+'</span>'+
+      '<span>High $'+pts[iMax].p.toFixed(2)+' · Low $'+pts[iMin].p.toFixed(2)+'</span>';
+    chartSvg.setAttribute('aria-label',
+      'PRL price, '+lab+': $'+first.toFixed(2)+' to $'+last.toFixed(2)+' ('+(up?'+':'−')+Math.abs(pct).toFixed(2)+
+      '%), high $'+pts[iMax].p.toFixed(2)+', low $'+pts[iMin].p.toFixed(2)+'. Use the arrow keys to read individual points.');
+  }
+
+  function renderBeNote(beSet){
+    beToggle.classList.toggle('active', chart.be);
+    beToggle.setAttribute('aria-pressed', String(chart.be));
+    if(!beSet){ beNote.hidden=true; return; }
+    beNote.hidden=false;
+    beNote.textContent = !beSet.lines.length
+      ? (S.elec<=0 ? 'Electricity is $0 — every card profits at any price, so there are no break-even lines.'
+                   : 'No break-even lines for these settings.')
+      : 'Dashed lines: the PRL price at which '+(beSet.fleet ? 'each card in your fleet' : 'each verified card')+
+        ' only just covers its electricity (self-mine net = $0) at the current difficulty, power price and pool fee.'+
+        (beSet.fleet ? '' : ' Set a Qty in the table to track your own fleet.');
+  }
+
+  // ---- crosshair + tooltip (mouse, touch and keyboard) ----
+  function showHover(i){
+    const g=chart.geo, grp=chartSvg.querySelector('.chover');
+    if(!g || !grp) return;
+    i=Math.max(0,Math.min(g.pts.length-1,i));
+    chart.hover=i;
+    const p=g.pts[i], x=g.X(p.t), y=g.Y(p.p);
+    const hx=grp.querySelector('.hx'), hd=grp.querySelector('.hd');
+    hx.setAttribute('x1',x); hx.setAttribute('x2',x); hx.setAttribute('y1',g.padT); hx.setAttribute('y2',g.yBot);
+    hd.setAttribute('cx',x); hd.setAttribute('cy',y);
+    grp.style.display='';
+
+    const first=g.pts[0].p, pct=(p.p-first)/first*100, up=pct>=0;
+    const isLive=i===g.pts.length-1 && LIVE.price && p.t===LIVE.price.ts;
+    chartTip.textContent='';
+    const add=(cls,txt)=>{ const d=document.createElement('div'); d.className=cls; d.textContent=txt; chartTip.appendChild(d); return d; };
+    add('tt-v','$'+p.p.toFixed(3));
+    add('tt-t',fmtFull(p.t)+(isLive?' · live':''));
+    add('tt-d '+(up?'up':'down'),(up?'▲ ':'▼ ')+Math.abs(pct).toFixed(2)+'% vs start of range');
+    const fl=fleetAt(p.p);
+    if(fl.q>0){
+      const d=add('tt-f','Your fleet here: ');
+      const b=document.createElement('b');
+      b.className=fl.net>=0?'pos':'neg';
+      b.textContent=money(fl.net)+'/day';
+      d.appendChild(b);
+    }
+    if(chart.be){
+      const losing=breakEvenSet().lines.filter(b=>p.p<b.p).map(b=>b.short);
+      if(losing.length) add('tt-l','Below break-even: '+losing.join(', '));
+    }
+    chartTip.hidden=false;
+    const tw=chartTip.offsetWidth, ww=chartWrap.clientWidth;
+    let left=x+14;
+    if(left+tw>ww-2) left=x-14-tw;
+    chartTip.style.left=Math.max(2,left)+'px';
+  }
+  function hideHover(){
+    chart.hover=-1;
+    const grp=chartSvg.querySelector('.chover');
+    if(grp) grp.style.display='none';
+    chartTip.hidden=true;
+  }
+  function hoverAt(clientX){
+    const g=chart.geo; if(!g) return;
+    const rect=chartSvg.getBoundingClientRect(); if(!rect.width) return;
+    // Work in fractions of the box so CSS zoom never skews the pointer mapping.
+    const vx=(clientX-rect.left)/rect.width*g.W;
+    const t=g.t0+(vx-g.padL)/g.plotW*g.tSpan, pts=g.pts;
+    let a=0, b=pts.length-1;
+    while(b-a>1){ const m=(a+b)>>1; if(pts[m].t<t) a=m; else b=m; }
+    showHover(t-pts[a].t < pts[b].t-t ? a : b);
+  }
+  chartSvg.addEventListener('pointermove',e=>{ clearTimeout(chart.tipTimer); hoverAt(e.clientX); });
+  chartSvg.addEventListener('pointerdown',e=>{ clearTimeout(chart.tipTimer); hoverAt(e.clientX); });
+  chartSvg.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') hideHover(); });
+  chartSvg.addEventListener('pointerup',e=>{ if(e.pointerType!=='mouse'){ clearTimeout(chart.tipTimer); chart.tipTimer=setTimeout(hideHover,2500); } });
+  chartSvg.addEventListener('pointercancel',hideHover);
+  chartSvg.addEventListener('keydown',e=>{
+    const g=chart.geo; if(!g) return;
+    const n=g.pts.length, stepN=e.shiftKey?10:1;
+    let i=chart.hover<0 ? n-1 : chart.hover;
+    if(e.key==='ArrowLeft') i-=stepN;
+    else if(e.key==='ArrowRight') i+=stepN;
+    else if(e.key==='Home') i=0;
+    else if(e.key==='End') i=n-1;
+    else if(e.key==='Escape'){ hideHover(); return; }
+    else return;
+    e.preventDefault(); showHover(i);
+  });
+  chartSvg.addEventListener('focus',()=>{
+    let kb=true; try{ kb=chartSvg.matches(':focus-visible'); }catch(e){}
+    if(kb && chart.geo && chart.hover<0) showHover(chart.geo.pts.length-1);
+  });
+  chartSvg.addEventListener('blur',hideHover);
+
   function loadChart(range){
-    chartRange=range;
-    chartMsg.textContent='Loading…'; chartMsg.style.display='flex';
-    const ctrl=('AbortController' in window)?new AbortController():null;
-    if(ctrl) setTimeout(()=>ctrl.abort(),8000);
-    fetch('/api/history?range='+range, {cache:'no-store', signal:ctrl?ctrl.signal:undefined})
-      .then(r=> r.ok ? r.json() : Promise.reject(r.status))
-      .then(d=>{ chartData=(d&&d.points)||[]; drawChart(); })
+    chart.range=range;
+    store.set('pearlrate:range',range);
+    $('#ranges').querySelectorAll('button').forEach(x=>{
+      x.classList.toggle('active', x.dataset.range===range);
+      x.setAttribute('aria-pressed', String(x.dataset.range===range));
+    });
+    const seq=++chart.seq;
+    hideHover();
+    // Refetch keeps the previous render (dimmed); only the very first load shows a skeleton.
+    if(chart.geo) chartWrap.classList.add('refetch');
+    else { chartWrap.classList.add('skeleton'); setMsg(null); }
+    fetchHistory(range)
+      .then(pts=>{
+        if(seq!==chart.seq) return;             // a newer range was picked meanwhile
+        chartWrap.classList.remove('refetch','skeleton');
+        chart.data=pts; chart.animate=true;
+        drawChart();
+      })
       .catch(err=>{
-        chartData=null; chartSvg.innerHTML='';
-        chartMsg.textContent = (err===503)
-          ? 'History not set up yet (connect the D1 binding).'
-          : 'Price history unavailable.';
-        chartMsg.style.display='flex';
+        if(seq!==chart.seq) return;
+        chartWrap.classList.remove('refetch','skeleton');
+        chart.data=null; chart.geo=null; chartSvg.innerHTML=''; cStats.textContent='';
+        renderBeNote(null);
+        setMsg(err===503 ? 'History not set up yet (connect the D1 binding).' : 'Price history unavailable.');
       });
+  }
+  // Quiet background refresh so a tab left open keeps a current line.
+  function refreshHistory(){
+    const range=chart.range, seq=chart.seq;
+    fetchHistory(range).then(pts=>{
+      if(seq!==chart.seq) return;
+      chart.data=pts; drawChart();
+    }).catch(()=>{});
+    fetchHistory('24h').then(spark).catch(()=>{});
   }
 
   $('#ranges').addEventListener('click',e=>{
-    const b=e.target.closest('button[data-range]'); if(!b) return;
-    $('#ranges').querySelectorAll('button').forEach(x=>x.classList.toggle('active', x===b));
+    const b=e.target.closest('button[data-range]'); if(!b || b.dataset.range===chart.range) return;
     loadChart(b.dataset.range);
   });
+  beToggle.addEventListener('click',()=>{
+    chart.be=!chart.be;
+    store.set('pearlrate:be', chart.be);
+    drawChart();
+  });
 
-  let rsz=null;
-  window.addEventListener('resize',()=>{ clearTimeout(rsz); rsz=setTimeout(drawChart,150); });
+  let rsz=0;
+  const onResize=()=>{ cancelAnimationFrame(rsz); rsz=requestAnimationFrame(drawChart); };
+  if('ResizeObserver' in window) new ResizeObserver(onResize).observe(chartWrap);
+  else window.addEventListener('resize',onResize);
 
-  loadChart('7d');
+  // ---- boot ----
+  renderRows();
+  bindPair('price','#priceRange','#priceNum',2,'#priceTick');
+  bindPair('diff','#diffRange','#diffNum',2,'#diffTick');
+  bindPair('elec','#elecRange','#elecNum',2);
+  bindPair('fee','#feeRange','#feeNum',null);
+  renderHints();
+  renderBadge();
+  updateTitle(null);
+  compute();
+  booted=true;
+
+  refreshPrice();
+  refreshDiff();
+  loadChart(chart.range);
+  fetchHistory('24h').then(spark).catch(()=>{});
+
+  // One heartbeat drives polling (only while the tab is visible) and the
+  // "updated N min ago" labels.
+  function tick(){
+    if(document.hidden) return;
+    const now=Date.now();
+    if(now-lastPriceFetch>=PRICE_POLL_MS) refreshPrice();
+    if(now-lastDiffFetch>=DIFF_POLL_MS) refreshDiff();
+    if(now-lastHistoryRefresh>=HISTORY_REFRESH_MS){ lastHistoryRefresh=now; refreshHistory(); }
+    renderHints(); renderBadge();
+  }
+  setInterval(tick, 15000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 })();
 </script>
 </body>
