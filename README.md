@@ -25,6 +25,17 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 
 Price and difficulty follow the live values until you move their slider (manual mode); **↺ Live** switches back. Yields are editable inline (click a yield cell) so you can drop in your own benchmarks.
 
+### Custom GPUs
+**Add GPU** (under the table) adds any card or rig with a name, its power draw in W and its yield in PRL/day at difficulty ×1.00. Custom rows carry a *Custom* chip and work everywhere the built-in cards do: quantities, fleet totals, the summary strip, the price-chart break-even lines, every Analysis view and the CSV. **Edit** on the row changes or removes it; clicking its yield edits the yield directly. They are saved with the rest of your setup (up to 20). *Reset defaults* keeps your custom GPU definitions and clears everything else.
+
+### Share a scenario
+**Copy link** (summary strip) copies a URL whose hash holds the whole scenario as compact, versioned base64url JSON (`#s=…`, schema `v:1`): price and difficulty (each live or pinned), electricity, pool fee, quantities, edited yields, custom GPUs and the Analysis inputs (growth, price trend, horizon, hardware costs, analysed GPU). A pinned price or difficulty opens in manual mode; a live one follows the visitor's own live data.
+
+Opening a link **previews** the scenario: a banner says so, and nothing is written to the visitor's saved setup while it is shown, even if they tweak the numbers. **Keep this scenario** makes it their setup; **Back to my setup** (or *Use defaults instead* for a first-time visitor) restores what they had. Either choice removes the hash, so a reload doesn't reopen the link. Damaged or newer-version links show a notice and leave the setup alone.
+
+### CSV export
+**Export CSV** downloads `pearlrate-YYYY-MM-DD.csv` (UTF-8 with BOM, CRLF, RFC 4180 quoting): a parameter block (price and mode, difficulty and mode, electricity, pool fee, export time, scenario link), then one row per GPU (type: verified / estimated / override / custom) with yield, gross, break-even rent, self-mine net and qty × net, and a fleet-total row. Text cells that start with `= + - @` are prefixed with `'` so a GPU name can never run as a spreadsheet formula.
+
 ## Data baseline
 
 Yields from public hashrate.no benchmarks, scaled to the current network difficulty (18,098,085 · 17 Jun 2026) which is the ×1.00 point. Defaults: difficulty ×1.00, electricity $0.10/kWh, pool fee 4%; PRL price is fetched live. The RTX 4090 row is an estimate (no verified PRL benchmark yet) and is flagged `est`.

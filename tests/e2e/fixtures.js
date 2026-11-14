@@ -65,6 +65,41 @@ const FLEET_STATE = {
 
 const IGNORED_CONSOLE = [/Failed to load resource/];
 
+// Wire one page up: fixed clock, font stubs, /api mocks, seeded storage and
+// console capture. Used by the auto fixture below and by tests that open a
+// second browser context (e.g. a different visitor opening a shared link).
+async function preparePage(page, { apiMode = 'ok', apiOverrides = {}, seedState = null, seedStorage = null } = {}) {
+  const errors = [];
+  page.on('console', (m) => {
+    if ((m.type() === 'error' || m.type() === 'warning') && !IGNORED_CONSOLE.some((r) => r.test(m.text()))) {
+      errors.push(`[console.${m.type()}] ${m.text()}`);
+    }
+  });
+  page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
+  await page.clock.setFixedTime(NOW);
+  await page.route(/^https:\/\/fonts\.googleapis\.com\//, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  await page.route(/^https:\/\/fonts\.gstatic\.com\//, (r) => r.abort());
+  await page.route(/\/api\//, (route) => {
+    const res = apiResponse(new URL(route.request().url()), apiMode, apiOverrides);
+    if (res) return route.fulfill(res);
+    // 'slow': never answer, so the page stays in its loading state.
+  });
+  // Seed localStorage once per page (a reload keeps whatever the page saved).
+  const seed = {};
+  if (seedState) seed['pearlrate:state'] = JSON.stringify(seedState);
+  if (seedStorage) Object.entries(seedStorage).forEach(([k, v]) => { seed[k] = JSON.stringify(v); });
+  if (Object.keys(seed).length) {
+    await page.addInitScript((s) => {
+      try {
+        if (sessionStorage.getItem('__pw_seeded')) return;
+        sessionStorage.setItem('__pw_seeded', '1');
+        Object.entries(s).forEach(([k, v]) => localStorage.setItem(k, v));
+      } catch (e) { /* storage blocked */ }
+    }, seed);
+  }
+  return errors;
+}
+
 const test = base.test.extend({
   apiMode: ['ok', { option: true }],
   apiOverrides: [{}, { option: true }],
@@ -72,34 +107,7 @@ const test = base.test.extend({
   seedStorage: [null, { option: true }],
   // Collected console errors/warnings; asserted empty when the test ends.
   consoleErrors: [async ({ page, apiMode, apiOverrides, seedState, seedStorage }, use) => {
-    const errors = [];
-    page.on('console', (m) => {
-      if ((m.type() === 'error' || m.type() === 'warning') && !IGNORED_CONSOLE.some((r) => r.test(m.text()))) {
-        errors.push(`[console.${m.type()}] ${m.text()}`);
-      }
-    });
-    page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
-    await page.clock.setFixedTime(NOW);
-    await page.route(/^https:\/\/fonts\.googleapis\.com\//, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
-    await page.route(/^https:\/\/fonts\.gstatic\.com\//, (r) => r.abort());
-    await page.route(/\/api\//, (route) => {
-      const res = apiResponse(new URL(route.request().url()), apiMode, apiOverrides);
-      if (res) return route.fulfill(res);
-      // 'slow': never answer, so the page stays in its loading state.
-    });
-    // Seed localStorage once per test (a reload keeps whatever the page saved).
-    const seed = {};
-    if (seedState) seed['pearlrate:state'] = JSON.stringify(seedState);
-    if (seedStorage) Object.entries(seedStorage).forEach(([k, v]) => { seed[k] = JSON.stringify(v); });
-    if (Object.keys(seed).length) {
-      await page.addInitScript((s) => {
-        try {
-          if (sessionStorage.getItem('__pw_seeded')) return;
-          sessionStorage.setItem('__pw_seeded', '1');
-          Object.entries(s).forEach(([k, v]) => localStorage.setItem(k, v));
-        } catch (e) { /* storage blocked */ }
-      }, seed);
-    }
+    const errors = await preparePage(page, { apiMode, apiOverrides, seedState, seedStorage });
     await use(errors);
     expect(errors, 'console errors / page errors').toEqual([]);
   }, { auto: true }],
@@ -113,7 +121,10 @@ async function openApp(page, { path = '/index.html', badge = 'live' } = {}) {
 
 const num = (s) => parseFloat(String(s).replace(/[^0-9.\-−]/g, '').replace('−', '-'));
 
+// Read the persisted setup straight from localStorage.
+const savedState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('pearlrate:state') || 'null'));
+
 module.exports = {
-  test, expect, openApp, num,
+  test, expect, openApp, preparePage, savedState, num,
   NOW, DAY, PRICE, DIFF, BASELINE_DIFFICULTY, FLEET_STATE, priceHistory, json,
 };

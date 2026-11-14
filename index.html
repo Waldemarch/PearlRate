@@ -69,6 +69,8 @@
        and three validated categorical slots for GPU architectures. */
     --heat-neg:#e66767; --heat-mid:#2a3039; --heat-pos:#3987e5;
     --arch-bw:#3987e5; --arch-ada:#d95926; --arch-amp:#199e70;
+    /* Custom GPUs fold into a neutral slot (a 4th hue would clash with orange in the bubble chart) */
+    --arch-custom:var(--ink-dim);
   }
   /* Warm, slightly-yellow light theme */
   [data-theme="light"]{
@@ -83,6 +85,7 @@
     --ink-faint:#73674f;
     --accent:#7a52c0;
     --green-strong:#116632;   /* green text on the pale green chip, ≥4.5:1 */
+    --red-strong:#b42020;     /* red text on the cream panels, ≥4.5:1 */
     /* darker stops so the light text on the sponsor button stays ≥4.5:1 */
     --pearl-strong:linear-gradient(115deg,#1a7a72 0%,#6a44ad 38%,#a8346f 66%,#2f7f43 100%);
     --green:#15803d;
@@ -613,7 +616,7 @@
   .rank{display:flex;flex-direction:column;gap:7px;font-size:11px}
   .rank .rh{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:2px}
   .rrow{display:grid;grid-template-columns:58px minmax(0,1fr) 92px;align-items:center;gap:8px;color:var(--ink-dim)}
-  .rrow .rn{color:var(--ink);white-space:nowrap}
+  .rrow .rn{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rrow.sel .rn{font-weight:600}
   .rrow .rt{height:8px;background:var(--line-soft);border-radius:0 4px 4px 0;overflow:hidden}
   .rrow .rb{height:100%;border-radius:0 4px 4px 0}
@@ -635,8 +638,71 @@
     .tile{padding:9px 10px}
   }
 
+  /* Buttons for the share / export / custom-GPU tools */
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    padding:7px 13px;border-radius:9px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{border-color:var(--thumb-border);color:var(--ink)}
+  .btn.primary{color:var(--ink);border-color:var(--thumb-border);background:var(--pearl-soft)}
+  .btn.danger{color:var(--red-strong,var(--red))}
+  .btn[hidden]{display:none}
+  .btn svg,.chipbtn svg{width:13px;height:13px;display:block;flex:0 0 auto}
+
+  /* Shared-scenario banner (opened from a #s= link) */
+  .sharebar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--thumb-border);border-radius:14px;padding:12px 16px;margin-bottom:14px;
+  }
+  .sharebar[hidden]{display:none}
+  .sharebar p{flex:1 1 300px;min-width:0;font-size:12px;color:var(--ink-dim);line-height:1.5}
+  .sharebar p b{color:var(--ink);font-weight:600}
+  .sbact{display:flex;gap:8px;flex-wrap:wrap}
+  .sumtools{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .sharestat{font-size:11px;color:var(--green-strong,var(--green))}
+  .linkbox{display:flex;gap:8px;margin:0 0 12px}
+  .linkbox[hidden]{display:none}
+  .linkbox input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:12px;color:var(--ink);background:var(--panel-2);border:1px solid var(--thumb-border);border-radius:8px;padding:6px 9px}
+
+  /* Table tools: add a custom GPU, export CSV */
+  .tabletools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line)}
+  .chip-custom{color:var(--accent);background:transparent;border:1px solid var(--accent)}
+  .gedit{
+    background:transparent;border:1px solid var(--line);color:var(--ink-dim);font-family:inherit;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;padding:1px 7px;border-radius:6px;cursor:pointer;margin-left:6px;vertical-align:1px;transition:.15s;
+  }
+  .gedit:hover{border-color:var(--thumb-border);color:var(--ink)}
+  .gpuform{border-top:1px solid var(--line);padding:14px 16px 16px;background:var(--panel-2)}
+  .gpuform[hidden]{display:none}
+  .gpuform h3{font-family:"Bricolage Grotesque",sans-serif;font-size:13px;color:var(--ink);margin-bottom:10px}
+  .gfgrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:10px 14px}
+  .gfgrid label{display:flex;flex-direction:column;gap:5px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+  .gfgrid input{
+    width:100%;min-width:0;font-family:inherit;font-size:13px;letter-spacing:0;text-transform:none;color:var(--ink);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px;
+  }
+  .gfgrid input::placeholder,.linkbox input::placeholder{color:var(--ink-faint);opacity:1}
+  .gfgrid input:focus{outline:none;border-color:var(--thumb-border);box-shadow:0 0 0 3px var(--thumb-glow)}
+  .gfgrid input[aria-invalid="true"]{border-color:var(--red)}
+  .gfnote{font-size:10.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  .gferr{font-size:11px;color:var(--red-strong,var(--red));margin-top:6px}
+  .gferr:empty{display:none}
+  .gfact{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .gfact .danger{margin-left:auto}
+  @media(max-width:640px){
+    .gfgrid{grid-template-columns:1fr 1fr}
+    .gfgrid label:first-child{grid-column:1/-1}
+    .tabletools{padding:12px 14px}
+    .gpuform{padding:14px}
+  }
+
   /* Touch screens: bigger slider thumbs/hit areas and ~40px+ tap targets */
   @media(pointer:coarse){
+    .btn{min-height:37px;padding:7px 14px}
+    .gedit{min-height:37px;min-width:44px;padding:6px 10px;font-size:10.5px;margin-left:8px}
+    .gfgrid input,.linkbox input{min-height:37px}
     :root{--thumb:22px; --hit:34px}
     .ctl{gap:4px}
     .livetick{height:16px;margin-top:-8px}
@@ -682,8 +748,15 @@
     </div>
   </header>
 
+  <div class="sharebar" id="shareBar" role="region" aria-label="Shared scenario" hidden>
+    <p id="shareMsg"></p>
+    <div class="sbact"><button type="button" class="btn primary" id="shareKeep">Keep this scenario</button><button type="button" class="btn" id="shareBack">Back to my setup</button></div>
+  </div>
+
   <section class="summary" id="summary" aria-labelledby="sumTitle">
-    <div class="sumhead"><h2 class="sumtitle" id="sumTitle">Your fleet</h2><span class="sumctx" id="sumCtx"></span></div>
+    <div class="sumhead"><h2 class="sumtitle" id="sumTitle">Your fleet</h2><span class="sumctx" id="sumCtx"></span>
+      <span class="sumtools"><span class="sharestat" id="shareStatus" role="status" aria-live="polite"></span><button type="button" class="chipbtn" id="copyLinkBtn" title="Copy a link that opens this exact scenario — prices, fleet, yields, custom GPUs and Analysis inputs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>Copy link</button></span></div>
+    <div class="linkbox" id="linkBox" hidden><input id="linkInput" type="text" readonly aria-label="Link to this scenario — copy it" /><button type="button" class="btn" id="linkClose">Close</button></div>
     <div class="kpis">
       <div class="kpi kpi-hero"><span class="kl">Self-mine net / day</span><span class="kv" id="sumNet">—</span><span class="ks" id="sumNetSub"></span></div>
       <div class="kpi kpi-hero"><span class="kl">Break-even rent / h</span><span class="kv acc" id="sumBE">—</span><span class="ks" id="sumBESub"></span></div>
@@ -743,6 +816,21 @@
         </tfoot>
       </table>
     </div>
+    <div class="tabletools">
+      <button type="button" class="btn" id="addGpuBtn" aria-expanded="false" aria-controls="gpuForm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add GPU</button>
+      <button type="button" class="btn" id="csvBtn" title="Download the table, fleet totals and current parameters as CSV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Export CSV</button>
+    </div>
+    <form class="gpuform" id="gpuForm" novalidate hidden aria-labelledby="gpuFormTitle">
+      <h3 id="gpuFormTitle">Add a custom GPU</h3>
+      <div class="gfgrid">
+        <label for="gfName">Name<input id="gfName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. RTX A6000" /></label>
+        <label for="gfPower">Power (W)<input id="gfPower" type="number" inputmode="numeric" min="1" max="10000" step="1" placeholder="300" /></label>
+        <label for="gfYield">PRL / day @ ×1.00<input id="gfYield" type="number" inputmode="decimal" min="0" max="1000" step="0.01" placeholder="1.20" /></label>
+      </div>
+      <p class="gfnote">Yield at difficulty ×1.00 (18.1M network difficulty), e.g. from your own benchmark or hashrate.no. It scales with the difficulty slider exactly like the built-in cards.</p>
+      <p class="gferr" id="gfErr" role="alert"></p>
+      <div class="gfact"><button type="submit" class="btn primary" id="gfSave">Add GPU</button><button type="button" class="btn" id="gfCancel">Cancel</button><button type="button" class="btn danger" id="gfRemove" hidden>Remove GPU</button></div>
+    </form>
   </div>
 
   <a class="sponsor" href="https://cloud.vast.ai/?ref_id=51345" target="_blank" rel="noopener sponsored" style="text-decoration:none">
@@ -921,6 +1009,7 @@
     {id:'3060',  name:'RTX 3060',    arch:'Ampere',    yield:0.55, power:160, est:true },
   ];
   const DEFAULTS = {price:1.45, diff:1.00, elec:0.10, fee:4, growth:5, trend:0};
+  const BASELINE_DIFFICULTY = 18098085;   // network difficulty at ×1.00 (17 Jun 2026)
 
   // Live polling. /api/price is a single KV read and the Worker refreshes it
   // every 5 min, so a 60 s poll (only while the tab is visible) keeps the page
@@ -941,17 +1030,41 @@
   };
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+  const BUILTIN_IDS = DEFAULT_CARDS.map(c=>c.id);
+  const CUSTOM_MAX = 20;
   function freshState(){
     return {price:DEFAULTS.price, diff:DEFAULTS.diff, elec:DEFAULTS.elec, fee:DEFAULTS.fee,
             growth:DEFAULTS.growth, trend:DEFAULTS.trend, horizon:12,
-            qty:{}, yields:{}, cost:{}, live:{price:true, diff:true}};
+            qty:{}, yields:{}, cost:{}, live:{price:true, diff:true}, custom:[]};
   }
-  let S = store.get('pearlrate:state', null);
-  if(!S || typeof S!=='object') S = freshState();
-  S.qty = S.qty || {}; S.yields = S.yields || {}; S.cost = S.cost || {};
-  if([6,12,24].indexOf(S.horizon)<0) S.horizon = 12;
-  if(!S.live || typeof S.live!=='object') S.live = {price:true, diff:true};
-  Object.keys(DEFAULTS).forEach(k=>{ if(typeof S[k]!=='number' || !isFinite(S[k])) S[k]=DEFAULTS[k]; });
+  const isObj = o => !!o && typeof o==='object' && !Array.isArray(o);
+  // Custom GPUs: [{id:'c1', name, power (W), yield (PRL/day at ×1.00)}]. Also fed
+  // from shared links, so everything is re-validated (names are escaped on output).
+  function cleanCustom(list){
+    const out=[], seen={};
+    (Array.isArray(list) ? list : []).forEach(g=>{
+      if(!isObj(g) || out.length>=CUSTOM_MAX) return;
+      const id=String(g.id||''), name=String(g.name==null ? '' : g.name).replace(/\s+/g,' ').trim().slice(0,40);
+      const power=Number(g.power), y=Number(g.yield);
+      if(!/^c\d{1,3}$/.test(id) || seen[id] || !name) return;
+      if(!(power>=1 && power<=10000) || !(y>=0 && y<=1000)) return;
+      seen[id]=1; out.push({id, name, power:Math.round(power), yield:y});
+    });
+    return out;
+  }
+  // Repair a saved (or link-decoded) state so the rest of the page can trust it.
+  function normalizeState(st){
+    if(!isObj(st)) st=freshState();
+    ['qty','yields','cost'].forEach(k=>{ if(!isObj(st[k])) st[k]={}; });
+    st.custom=cleanCustom(st.custom);
+    Object.keys(st.yields).forEach(id=>{ if(BUILTIN_IDS.indexOf(id)<0) delete st.yields[id]; });
+    if([6,12,24].indexOf(st.horizon)<0) st.horizon=12;
+    if(!isObj(st.live)) st.live={price:true, diff:true};
+    st.live.price=st.live.price!==false; st.live.diff=st.live.diff!==false;
+    Object.keys(DEFAULTS).forEach(k=>{ if(typeof st[k]!=='number' || !isFinite(st[k])) st[k]=DEFAULTS[k]; });
+    return st;
+  }
+  let S = normalizeState(store.get('pearlrate:state', null));
 
   // Last live values seen — a reload shows real numbers before the fetch lands.
   function priceRec(r){ return (r && isFinite(r.price) && r.price>0 && r.price<=1e6 && isFinite(r.ts)) ? r : null; }
@@ -961,10 +1074,23 @@
     diff:  diffRec(store.get('pearlrate:live-diff', null)),
     priceErr:false, diffErr:false
   };
-  if(S.live.price && LIVE.price) S.price = LIVE.price.price;
-  if(S.live.diff && LIVE.diff) S.diff = LIVE.diff.mult;
+  function applyLive(st){
+    if(st.live.price && LIVE.price) st.price = LIVE.price.price;
+    if(st.live.diff && LIVE.diff) st.diff = LIVE.diff.mult;
+    return st;
+  }
+  applyLive(S);
+
+  // Built-in cards plus your custom GPUs — everything below iterates CARDS.
+  let CARDS = [];
+  function rebuildCards(){
+    CARDS = DEFAULT_CARDS.concat(S.custom.map(g=>({id:g.id, name:g.name, arch:'Custom', yield:g.yield, power:g.power, est:false, custom:true})));
+  }
+  rebuildCards();
 
   const $ = s => document.querySelector(s);
+  const ESC = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  const esc = s => String(s).replace(/[&<>"']/g, ch=>ESC[ch]);
   const rowsEl = $('#rows');
   const BASE_TITLE = document.title;
   let booted = false;
@@ -1042,12 +1168,12 @@
   }
   function fleetAt(P){
     let q=0, net=0;
-    DEFAULT_CARDS.forEach(c=>{ const n=S.qty[c.id]||0; if(n>0){ q+=n; net+=calc(c,P).net*n; } });
+    CARDS.forEach(c=>{ const n=S.qty[c.id]||0; if(n>0){ q+=n; net+=calc(c,P).net*n; } });
     return {q, net};
   }
   // Cards drawn as break-even lines: your fleet, or the verified cards if it's empty.
   function breakEvenSet(){
-    const fleet = DEFAULT_CARDS.filter(c=>(S.qty[c.id]||0)>0);
+    const fleet = CARDS.filter(c=>(S.qty[c.id]||0)>0);
     const cards = fleet.length ? fleet : DEFAULT_CARDS.filter(c=>!c.est);
     return {
       fleet: fleet.length>0,
@@ -1062,21 +1188,24 @@
 
   function renderRows(){
     rowsEl.innerHTML=''; cells={};
-    DEFAULT_CARDS.forEach(c=>{
-      const tr=document.createElement('tr');
+    CARDS.forEach(c=>{
+      const tr=document.createElement('tr'), nm=esc(c.name);
       tr.dataset.id=c.id;
+      if(c.custom) tr.className='custom';
       tr.innerHTML =
-        '<td class="c-gpu"><div class="gpu"><span class="nm"><span class="nmt">'+c.name+'</span>'+
-        (c.est
-          ? ' <span class="chip chip-est">Estimated*</span>'
+        '<td class="c-gpu"><div class="gpu"><span class="nm"><span class="nmt">'+nm+'</span>'+
+        (c.custom ? ' <span class="chip chip-custom">Custom</span>'
+          : c.est ? ' <span class="chip chip-est">Estimated*</span>'
           : ' <span class="chip chip-verified">Verified*</span>')+
-        '</span><span class="arch">'+c.arch+' · '+c.power+'W</span></div></td>'+
+        '</span><span class="arch">'+esc(c.arch)+' · '+c.power+'W'+
+        (c.custom ? '<button type="button" class="gedit" data-edit="'+c.id+'" aria-label="Edit or remove '+nm+'">Edit</button>' : '')+
+        '</span></div></td>'+
         '<td class="c-qty" data-label="Qty"><span class="qtybox">'+
-          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="-1" aria-label="One fewer '+c.name+'">−</button>'+
-          '<input class="qty" type="number" inputmode="numeric" min="0" step="1" data-q="'+c.id+'" value="'+(S.qty[c.id]||0)+'" aria-label="'+c.name+' quantity">'+
-          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="1" aria-label="One more '+c.name+'">+</button>'+
+          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="-1" aria-label="One fewer '+nm+'">−</button>'+
+          '<input class="qty" type="number" inputmode="numeric" min="0" step="1" data-q="'+c.id+'" value="'+(S.qty[c.id]||0)+'" aria-label="'+nm+' quantity">'+
+          '<button type="button" class="qbtn" data-q="'+c.id+'" data-step="1" aria-label="One more '+nm+'">+</button>'+
         '</span></td>'+
-        '<td class="c-yield" data-label="Yield PRL/day"><button type="button" class="yieldcell" data-y="'+c.id+'" aria-label="Edit '+c.name+' yield">'+PEN+'<span class="yv"></span></button></td>'+
+        '<td class="c-yield" data-label="Yield PRL/day"><button type="button" class="yieldcell" data-y="'+c.id+'" aria-label="Edit '+nm+' yield">'+PEN+'<span class="yv"></span></button></td>'+
         '<td data-label="Gross / day"></td>'+
         '<td data-label="Gross / h"></td>'+
         '<td class="breakeven big" data-label="Break-even rent / h"><span></span></td>'+
@@ -1100,20 +1229,23 @@
     const b=e.target.closest('.qbtn');
     if(b){ setQty(b.dataset.q, (S.qty[b.dataset.q]||0)+Number(b.dataset.step), true); return; }
     const y=e.target.closest('.yieldcell');
-    if(y) startYieldEdit(y.dataset.y);
+    if(y){ startYieldEdit(y.dataset.y); return; }
+    const ed=e.target.closest('.gedit');
+    if(ed) openGpuForm(ed.dataset.edit);
   });
 
   // Inline yield override (replaces the old double-click + prompt()).
   // The value edited is the base yield at ×1.00 difficulty; clear it to restore the default.
   function startYieldEdit(id){
-    const c=DEFAULT_CARDS.find(x=>x.id===id), td=cells[id] && cells[id].ybtn.parentNode;
+    const c=cardById(id), td=cells[id] && cells[id].ybtn.parentNode;
     if(!c || !td || td.classList.contains('editing')) return;
     const inp=document.createElement('input');
     inp.type='number'; inp.min='0'; inp.step='0.01'; inp.className='yieldedit';
     inp.value=String(baseYield(c)); inp.placeholder=String(c.yield);
-    inp.setAttribute('aria-label', c.name+' base yield, PRL/day at ×1.00 difficulty — clear to restore '+c.yield);
+    inp.setAttribute('aria-label', c.custom ? c.name+' yield, PRL/day at ×1.00 difficulty'
+                                            : c.name+' base yield, PRL/day at ×1.00 difficulty — clear to restore '+c.yield);
     const cap=document.createElement('span');
-    cap.className='yieldcap'; cap.textContent='PRL/day @ ×1.00 · clear = default';
+    cap.className='yieldcap'; cap.textContent=c.custom ? 'PRL/day @ ×1.00' : 'PRL/day @ ×1.00 · clear = default';
     td.classList.add('editing'); td.appendChild(inp); td.appendChild(cap);
     inp.focus(); inp.select();
     let done=false;
@@ -1121,7 +1253,12 @@
       if(done) return; done=true;
       if(save){
         const raw=inp.value.trim(), n=parseFloat(raw);
-        if(raw==='' || (isFinite(n) && Math.abs(n-c.yield)<1e-9)) delete S.yields[id];
+        if(c.custom){
+          // A custom GPU has no default to fall back to: edit its definition.
+          const g=S.custom.find(x=>x.id===id);
+          if(g && raw!=='' && isFinite(n) && n>=0 && n<=1000){ g.yield=n; rebuildCards(); }
+        }
+        else if(raw==='' || (isFinite(n) && Math.abs(n-c.yield)<1e-9)) delete S.yields[id];
         else if(isFinite(n) && n>=0) S.yields[id]=n;
         persist();
       }
@@ -1139,12 +1276,12 @@
   function compute(o){
     o=o||{};
     let tQty=0,tYield=0,tGrossDay=0,tGrossH=0,tBE=0,tNet=0;
-    DEFAULT_CARDS.forEach(c=>{
+    CARDS.forEach(c=>{
       const r=calc(c,S.price), q=S.qty[c.id]||0, x=cells[c.id];
       const custom=hasOverride(c.id), est=c.est && !custom;
       x.ybtn.classList.toggle('est-yield', est);
       x.ybtn.classList.toggle('custom', custom);
-      x.ybtn.title = custom ? 'Your override — click to edit, clear it to restore the default' : 'Click to override with your own benchmark';
+      x.ybtn.title = c.custom ? 'Click to edit this custom GPU’s yield' : custom ? 'Your override — click to edit, clear it to restore the default' : 'Click to override with your own benchmark';
       setVal(x.yv, r.eff, est ? fmtEst : fmtYield, o);
       setVal(x.gd, r.grossDay, money, o);
       setVal(x.gh, r.grossH, moneyH, o);
@@ -1172,7 +1309,7 @@
   // ---- summary: headline numbers for the fleet (or 1× the top card while it's empty) ----
   const sumEl={net:$('#sumNet'), be:$('#sumBE'), gross:$('#sumGross'), bep:$('#sumBEP')};
   function renderSummary(o){
-    const fleet=DEFAULT_CARDS.filter(c=>(S.qty[c.id]||0)>0).map(c=>({c, q:S.qty[c.id]}));
+    const fleet=CARDS.filter(c=>(S.qty[c.id]||0)>0).map(c=>({c, q:S.qty[c.id]}));
     const items=fleet.length ? fleet : [{c:DEFAULT_CARDS[0], q:1}];
     const n=items.reduce((t,x)=>t+x.q,0);
     let net=0, be=0, gross=0, yld=0;
@@ -1292,19 +1429,35 @@
   }
   function renderHints(){ renderHint('price'); renderHint('diff'); }
 
+  // While a shared link is being previewed nothing is saved: the visitor's own
+  // setup stays in localStorage until they pick "Keep" (see the share bar).
+  let preview=null;
   let saveTimer=null;
-  function persist(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>store.set('pearlrate:state',S),250); }
-
-  $('#resetBtn').addEventListener('click',()=>{
-    S=freshState();
-    if(LIVE.price) S.price=LIVE.price.price;
-    if(LIVE.diff) S.diff=LIVE.diff.mult;
-    store.set('pearlrate:state',S);
+  function persist(){
+    clearTimeout(saveTimer);
+    if(preview) return;
+    saveTimer=setTimeout(()=>{ if(!preview) store.set('pearlrate:state',S); },250);
+  }
+  // Re-render everything after S was replaced wholesale (reset, shared link, back).
+  function refreshAll(){
+    rebuildCards();
     renderRows();
     ['price','diff','elec','fee','growth','trend'].forEach(syncControl);
     roi.costSig='';
     renderHints();
     compute();
+  }
+
+  // Reset puts every parameter back to its default; your custom GPU
+  // definitions are kept (only their quantities and costs are cleared).
+  $('#resetBtn').addEventListener('click',()=>{
+    const custom=S.custom;
+    S=freshState();
+    S.custom=custom;
+    if(LIVE.price) S.price=LIVE.price.price;
+    if(LIVE.diff) S.diff=LIVE.diff.mult;
+    if(!preview) store.set('pearlrate:state',S);
+    refreshAll();
   });
 
   // ---- theme toggle (warm light / dark), persisted; initial theme set in <head> ----
@@ -1575,7 +1728,7 @@
     });
     const beLabel=(txt,x,y,cls)=>{
       out.push('<rect class="belab-bg" x="'+f1(x-5)+'" y="'+f1(y-10)+'" width="'+Math.round(txt.length*6.05+10)+'" height="14" rx="4"/>'+
-               '<text class="'+cls+'" x="'+f1(x)+'" y="'+f1(y)+'">'+txt+'</text>');
+               '<text class="'+cls+'" x="'+f1(x)+'" y="'+f1(y)+'">'+esc(txt)+'</text>');
     };
     groups.forEach(g=>{
       const ps=g.map(l=>l.b.p), pLo=Math.min.apply(null,ps), pHi=Math.max.apply(null,ps);
@@ -1798,10 +1951,10 @@
   // Rough street prices per card — only a starting point for the payback maths;
   // the UI marks them as placeholders and users type in what they paid.
   const DEFAULT_COST = {'5090':2000,'4090':1600,'5080':1000,'5070ti':750,'3090':700,'5070':550,'4060ti':400,'3060':250};
-  const ARCH = [['Blackwell','--arch-bw'],['Ada','--arch-ada'],['Ampere','--arch-amp']];
+  const ARCH = [['Blackwell','--arch-bw'],['Ada','--arch-ada'],['Ampere','--arch-amp'],['Custom','--arch-custom']];
   const archVar = a => (ARCH.find(x=>x[0]===a)||ARCH[0])[1];
   const MONTH_DAYS = 30.44;
-  const cardById = id => DEFAULT_CARDS.find(c=>c.id===id);
+  const cardById = id => CARDS.find(c=>c.id===id);
   const fx = v => v.toFixed(1);
   const pctTxt = v => fmtNum(Math.round(v*100),0)+'%';
   const moneyBig = v => Math.abs(v)>=1000 ? usd(v,0) : money(v);
@@ -1843,7 +1996,7 @@
     const w=txt.length*6.05+10;
     const x0 = anchor==='end' ? x-w+5 : anchor==='middle' ? x-w/2 : x-5;
     out.push('<rect class="pill" x="'+fx(x0)+'" y="'+fx(y-10)+'" width="'+Math.round(w)+'" height="14" rx="4"/>'+
-             '<text class="'+(cls||'lab')+'" x="'+fx(x)+'" y="'+fx(y)+'" text-anchor="'+(anchor||'start')+'">'+txt+'</text>');
+             '<text class="'+(cls||'lab')+'" x="'+fx(x)+'" y="'+fx(y)+'" text-anchor="'+(anchor||'start')+'">'+esc(txt)+'</text>');
   }
   function tipRows(tip, rows){
     tip.textContent='';
@@ -1868,9 +2021,9 @@
   let subjectSel=store.get('pearlrate:subject','fleet');
   if(subjectSel!=='fleet' && !cardById(subjectSel)) subjectSel='fleet';
   function subject(){
-    const fleet=DEFAULT_CARDS.filter(c=>(S.qty[c.id]||0)>0).map(c=>({c, q:S.qty[c.id]}));
+    const fleet=CARDS.filter(c=>(S.qty[c.id]||0)>0).map(c=>({c, q:S.qty[c.id]}));
     if(subjectSel==='fleet' && fleet.length) return {items:fleet, fleet:true, label:'your fleet'};
-    const c=cardById(subjectSel==='fleet' ? '5090' : subjectSel);
+    const c=(subjectSel!=='fleet' && cardById(subjectSel)) || cardById('5090');
     return {items:[{c, q:1}], fleet:false, fallback:subjectSel==='fleet', label:'1× '+c.name};
   }
   // Net/day is linear in P/D: net = A·P/D − E, with A = PRL/day at ×1 after the
@@ -1882,9 +2035,10 @@
     return {A, E};
   }
   function renderSubjectOptions(){
-    const n=DEFAULT_CARDS.reduce((t,c)=>t+(S.qty[c.id]||0),0);
+    const n=CARDS.reduce((t,c)=>t+(S.qty[c.id]||0),0);
+    if(subjectSel!=='fleet' && !cardById(subjectSel)) subjectSel='fleet';
     const opts=[['fleet', n ? 'My fleet ('+n+' GPU'+(n>1?'s':'')+')' : 'My fleet (empty)']]
-      .concat(DEFAULT_CARDS.map(c=>[c.id,'1× '+c.name]));
+      .concat(CARDS.map(c=>[c.id,'1× '+c.name+(c.custom?' (custom)':'')]));
     const sig=opts.map(o=>o.join(':')).join('|');
     if(subjectEl._sig!==sig){
       subjectEl._sig=sig; subjectEl.textContent='';
@@ -1894,7 +2048,7 @@
   }
   subjectEl.addEventListener('change',()=>{
     subjectSel=subjectEl.value;
-    store.set('pearlrate:subject',subjectSel);
+    if(!preview) store.set('pearlrate:subject',subjectSel);
     drawAnalysis();
   });
 
@@ -2058,7 +2212,7 @@
   // ---- payback & ROI ----
   const roiSvg=$('#roiSvg'), roiWrap=$('#roiWrap'), roiTip=$('#roiTip');
   const roi={costSig:'', geo:null, hover:-1};
-  function costOf(id){ const v=S.cost[id]; return (typeof v==='number' && isFinite(v) && v>=0) ? v : DEFAULT_COST[id]; }
+  function costOf(id){ const v=S.cost[id]; return (typeof v==='number' && isFinite(v) && v>=0) ? v : (DEFAULT_COST[id] || 0); }
   function renderCosts(sub){
     const sig=sub.items.map(x=>x.c.id+':'+x.q).join('|');
     if(sig!==roi.costSig){
@@ -2070,18 +2224,20 @@
         const wrap=document.createElement('span'); wrap.className='costbox';
         const inp=document.createElement('input');
         inp.type='number'; inp.min='0'; inp.step='10'; inp.inputMode='decimal'; inp.className='costin'; inp.dataset.id=c.id;
-        inp.value=String(costOf(c.id)); inp.placeholder=String(DEFAULT_COST[c.id]);
+        inp.value=String(costOf(c.id)); inp.placeholder=String(DEFAULT_COST[c.id] || 0);
         inp.setAttribute('aria-label',c.name+' price per card, USD');
         wrap.append('$', inp, ' each');
         row.append(nm, wrap); box.appendChild(row);
       });
     }
-    let anyDefault=false;
+    let anyDefault=false, customMissing=false;
     $('#roiCosts').querySelectorAll('.costin').forEach(inp=>{
       const def=!(typeof S.cost[inp.dataset.id]==='number');
       inp.classList.toggle('isdef', def); anyDefault = anyDefault || def;
+      if(def && !DEFAULT_COST[inp.dataset.id]) customMissing=true;
     });
-    $('#costHint').textContent = anyDefault ? 'Italic = rough street-price placeholder. Enter what you actually paid.' : 'Your prices.';
+    $('#costHint').textContent = customMissing ? 'Enter what your custom GPUs cost — they count as $0 until you do.'
+      : anyDefault ? 'Italic = rough street-price placeholder. Enter what you actually paid.' : 'Your prices.';
   }
   $('#roiCosts').addEventListener('input',e=>{
     const inp=e.target.closest('.costin'); if(!inp) return;
@@ -2227,12 +2383,18 @@
   // ---- GPU efficiency (yield vs power, bubble = net/day) ----
   const effSvg=$('#effSvg'), effWrap=$('#effWrap'), effTip=$('#effTip');
   const eff={pts:null};
-  $('#effLegend').innerHTML=ARCH.map(a=>'<span><span class="sw" style="background:var('+a[1]+')"></span>'+a[0]+'</span>').join('')+
-    '<span><span class="sw dash"></span>estimated yield</span><span><span class="sw ring"></span>being analysed</span>';
+  function renderEffLegend(){
+    const hasCustom=S.custom.length>0;
+    if(eff.legendCustom===hasCustom) return;
+    eff.legendCustom=hasCustom;
+    $('#effLegend').innerHTML=ARCH.filter(a=>a[0]!=='Custom' || hasCustom).map(a=>'<span><span class="sw" style="background:var('+a[1]+')"></span>'+a[0]+'</span>').join('')+
+      '<span><span class="sw dash"></span>estimated yield</span><span><span class="sw ring"></span>being analysed</span>';
+  }
 
   function drawEff(sub){
+    renderEffLegend();
     const F=Math.min(1,Math.max(0,S.fee/100)), P=S.price;
-    const pts=DEFAULT_CARDS.map(c=>{
+    const pts=CARDS.map(c=>{
       const r=calc(c,P), kwh=c.power*24/1000;
       return {c, x:c.power, y:r.eff, net:r.net, ppk:r.eff/kwh, usdk:r.eff*P*(1-F)/kwh, est:c.est && !hasOverride(c.id),
               sel:sub.items.some(i=>i.c.id===c.id)};
@@ -2240,7 +2402,7 @@
     // Ranking list — the readable twin of the chart.
     const ranked=pts.slice().sort((a,b)=>b.ppk-a.ppk), maxPpk=Math.max.apply(null,ranked.map(p=>p.ppk)) || 1;
     $('#effRank').innerHTML='<div class="rh"><span>PRL per kWh</span><span>earns $/kWh</span></div>'+ranked.map(p=>
-      '<div class="rrow'+(p.sel?' sel':'')+(p.est?' est':'')+'"><span class="rn">'+p.c.name.replace(/^RTX\s+/,'')+'</span>'+
+      '<div class="rrow'+(p.sel?' sel':'')+(p.est?' est':'')+'"><span class="rn">'+esc(p.c.name.replace(/^RTX\s+/,''))+'</span>'+
       '<span class="rt"><span class="rb" style="display:block;width:'+fx(Math.max(2,p.ppk/maxPpk*100))+'%;background:var('+archVar(p.c.arch)+')"></span></span>'+
       '<span class="rv"><b>'+p.ppk.toFixed(3)+'</b> · '+(p.usdk>=S.elec?'':'<span class="neg">')+'$'+p.usdk.toFixed(2)+(p.usdk>=S.elec?'':'</span>')+'</span></div>').join('')+
       '<div class="rh" style="margin-top:4px;text-transform:none;letter-spacing:0"><span>you pay $'+S.elec.toFixed(2)+'/kWh for power</span></div>';
@@ -2335,7 +2497,267 @@
   if('ResizeObserver' in window){ const ro=new ResizeObserver(onAnalysisResize); [mapWrap, roiWrap, effWrap].forEach(el=>ro.observe(el)); }
   else window.addEventListener('resize',onAnalysisResize);
 
+  // ======== Share a scenario (#s= link), CSV export, custom GPUs ========
+  // A link carries the whole scenario as versioned base64url JSON in the hash:
+  //   #s=<{v:1, p:[price, live?], d:[diff, live?], e, f, q, y, c, a, ...}>
+  // Opening one *previews* it: the scenario lives in memory only and the
+  // visitor's own saved setup stays untouched until they choose "Keep this
+  // scenario" (it becomes their setup) or "Back to my setup".
+  // A pinned (manual) price or difficulty in the link opens in manual mode;
+  // a live one follows the visitor's live market data.
+  const SCENARIO_V=1;
+  const r4=v=>Math.round(v*1e4)/1e4;
+  function b64urlEncode(str){
+    const bytes=new TextEncoder().encode(str);
+    let bin='';
+    for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(s){
+    s=s.replace(/-/g,'+').replace(/_/g,'/');
+    while(s.length%4) s+='=';
+    const bin=atob(s), bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  }
+  // Numeric entries of map whose key is in ids (or null when there are none).
+  function pickNums(map, ids){
+    const o={};
+    Object.keys(map).forEach(k=>{ if(ids.indexOf(k)>=0 && typeof map[k]==='number' && isFinite(map[k])) o[k]=r4(map[k]); });
+    return Object.keys(o).length ? o : null;
+  }
+  function scenarioOf(){
+    const ids=CARDS.map(c=>c.id);
+    const o={v:SCENARIO_V, p:[r4(S.price), S.live.price?1:0], d:[r4(S.diff), S.live.diff?1:0], e:r4(S.elec), f:r4(S.fee)};
+    const q={};
+    CARDS.forEach(c=>{ if((S.qty[c.id]||0)>0) q[c.id]=S.qty[c.id]; });
+    if(Object.keys(q).length) o.q=q;
+    const y=pickNums(S.yields, BUILTIN_IDS);
+    if(y) o.y=y;
+    if(S.custom.length) o.c=S.custom.map(g=>[g.id, g.name, g.power, r4(g.yield)]);
+    const a={g:r4(S.growth), t:r4(S.trend), h:S.horizon}, cost=pickNums(S.cost, ids);
+    if(cost) a.c=cost;
+    if(subjectSel!=='fleet' && cardById(subjectSel)) a.s=subjectSel;
+    o.a=a;
+    return o;
+  }
+  function scenarioUrl(){ return location.origin+location.pathname+'#s='+b64urlEncode(JSON.stringify(scenarioOf())); }
+
+  // Decode and validate a hash. null = no scenario; {error} = unreadable; else {state, subject}.
+  function readScenario(hash){
+    const m=/^#s=([A-Za-z0-9_-]+)$/.exec(hash||'');
+    if(!m) return null;
+    let o=null;
+    try{ if(m[1].length<=12000) o=JSON.parse(b64urlDecode(m[1])); }catch(e){ o=null; }
+    if(!isObj(o)) return {error:'unreadable'};
+    if(o.v!==SCENARIO_V) return {error: typeof o.v==='number' && o.v>SCENARIO_V ? 'newer' : 'unreadable'};
+    const n=(v,lo,hi)=> (typeof v==='number' && isFinite(v) && v>=lo && v<=hi) ? v : undefined;
+    const st=freshState();
+    const setNum=(key,v,lo,hi)=>{ const x=n(v,lo,hi); if(x!==undefined) st[key]=x; };
+    if(Array.isArray(o.p)){ setNum('price',o.p[0],0.0001,1e6); st.live.price=o.p[1]!==0; }
+    if(Array.isArray(o.d)){ setNum('diff',o.d[0],0.01,100); st.live.diff=o.d[1]!==0; }
+    setNum('elec',o.e,0,10); setNum('fee',o.f,0,100);
+    if(Array.isArray(o.c)) st.custom=cleanCustom(o.c.map(x=>Array.isArray(x) ? {id:x[0], name:x[1], power:x[2], yield:x[3]} : null));
+    const ids=BUILTIN_IDS.concat(st.custom.map(g=>g.id));
+    if(isObj(o.q)) Object.keys(o.q).forEach(k=>{ const v=n(o.q[k],0,9999); if(ids.indexOf(k)>=0 && v!==undefined) st.qty[k]=Math.round(v); });
+    if(isObj(o.y)) Object.keys(o.y).forEach(k=>{ const v=n(o.y[k],0,1000); if(BUILTIN_IDS.indexOf(k)>=0 && v!==undefined) st.yields[k]=v; });
+    let subject='fleet';
+    if(isObj(o.a)){
+      setNum('growth',o.a.g,-50,100); setNum('trend',o.a.t,-50,50);
+      if([6,12,24].indexOf(o.a.h)>=0) st.horizon=o.a.h;
+      if(isObj(o.a.c)) Object.keys(o.a.c).forEach(k=>{ const v=n(o.a.c[k],0,1e6); if(ids.indexOf(k)>=0 && v!==undefined) st.cost[k]=v; });
+      if(typeof o.a.s==='string' && ids.indexOf(o.a.s)>=0) subject=o.a.s;
+    }
+    return {state:normalizeState(st), subject};
+  }
+
+  const shareBar=$('#shareBar'), shareMsg=$('#shareMsg'), shareStatus=$('#shareStatus');
+  const shareKeep=$('#shareKeep'), shareBack=$('#shareBack'), copyLinkBtn=$('#copyLinkBtn');
+  let statusTimer=0;
+  function say(txt){
+    shareStatus.textContent=txt;
+    clearTimeout(statusTimer);
+    statusTimer=setTimeout(()=>{ shareStatus.textContent=''; },5000);
+  }
+  function clearHash(){
+    try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){ location.hash=''; }
+  }
+  function enterPreview(sc){
+    preview={hadOwn: store.get('pearlrate:state',null)!==null};
+    clearTimeout(saveTimer);
+    S=applyLive(sc.state);
+    subjectSel=sc.subject;
+    rebuildCards();
+    const n=CARDS.reduce((t,c)=>t+(S.qty[c.id]||0),0);
+    const bits=[
+      S.live.price ? 'live PRL price' : 'PRL price pinned at $'+S.price.toFixed(2),
+      S.live.diff ? 'live difficulty' : 'difficulty pinned at ×'+S.diff.toFixed(2),
+      n ? n+' GPU'+(n>1?'s':'') : 'no fleet',
+      S.custom.length ? S.custom.length+' custom GPU'+(S.custom.length>1?'s':'') : ''
+    ].filter(Boolean);
+    shareMsg.innerHTML='<b>Shared scenario</b> — '+esc(bits.join(' · '))+'. '+
+      (preview.hadOwn ? 'Your own setup is saved and stays untouched unless you keep this one.' : 'Nothing is saved until you keep it.');
+    shareKeep.hidden=false;
+    shareBack.textContent = preview.hadOwn ? 'Back to my setup' : 'Use defaults instead';
+    shareBar.hidden=false;
+  }
+  function showShareError(kind){
+    shareMsg.innerHTML='<b>Couldn’t open that link</b> — '+(kind==='newer'
+      ? 'it was made by a newer version of PearlRate. Reload the page and try again.'
+      : 'the scenario in it is damaged or cut off.')+' Showing your own setup.';
+    shareKeep.hidden=true;
+    shareBack.textContent='Dismiss';
+    shareBar.hidden=false;
+  }
+  shareKeep.addEventListener('click',()=>{
+    if(!preview) return;
+    preview=null;
+    store.set('pearlrate:state',S);
+    store.set('pearlrate:subject',subjectSel);
+    clearHash();
+    shareBar.hidden=true;
+    say('Scenario saved as your setup');
+    copyLinkBtn.focus();
+  });
+  shareBack.addEventListener('click',()=>{
+    const was=!!preview;
+    preview=null;
+    clearHash();
+    shareBar.hidden=true;
+    if(!was) return;                       // only the error notice was showing
+    S=applyLive(normalizeState(store.get('pearlrate:state',null)));
+    subjectSel=store.get('pearlrate:subject','fleet');
+    refreshAll();
+    say('Back to your own setup');
+    copyLinkBtn.focus();
+  });
+  window.addEventListener('hashchange',()=>{
+    const sc=readScenario(location.hash);
+    if(!sc) return;
+    if(sc.error){ showShareError(sc.error); return; }
+    enterPreview(sc);
+    refreshAll();
+    window.scrollTo(0,0);
+  });
+
+  copyLinkBtn.addEventListener('click',()=>{
+    const url=scenarioUrl(), box=$('#linkBox'), inp=$('#linkInput');
+    const fallback=()=>{ inp.value=url; box.hidden=false; inp.focus(); inp.select(); say('Copy the link below'); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(()=>{ box.hidden=true; say('Link copied'); }, fallback);
+    } else fallback();
+  });
+  $('#linkClose').addEventListener('click',()=>{ $('#linkBox').hidden=true; copyLinkBtn.focus(); });
+
+  // ---- CSV export: per-GPU rows, fleet totals and the parameters they were computed with ----
+  function csvCell(v){
+    if(v==null) return '';
+    if(typeof v==='number') return isFinite(v) ? String(+v.toFixed(6)) : '';
+    let t=String(v);
+    if(/^[=+\-@\t\r]/.test(t)) t="'"+t;      // a GPU name must never run as a spreadsheet formula
+    return /[",\r\n]/.test(t) ? '"'+t.replace(/"/g,'""')+'"' : t;
+  }
+  function exportCsv(){
+    const now=new Date(), day=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+    const rows=[
+      ['PearlRate export'],
+      ['Parameter','Value'],
+      ['Exported at', now.toISOString()],
+      ['PRL price (USDT)', S.price], ['PRL price mode', S.live.price ? 'live' : 'manual'],
+      ['Network difficulty ×', S.diff], ['Difficulty mode', S.live.diff ? 'live' : 'manual'],
+      ['Difficulty at ×1.00', BASELINE_DIFFICULTY],
+      ['Electricity $/kWh', S.elec], ['Pool fee %', S.fee],
+      ['Scenario link', scenarioUrl()],
+      [],
+      ['GPU','Type','Architecture','Power W','Qty','Yield PRL/day @ ×1.00','Yield PRL/day','Gross $/day','Gross $/h',
+       'Break-even rent $/h','Self-mine net $/day','Qty × self-mine net $/day']
+    ];
+    let tQ=0, tW=0, tY=0, tGD=0, tGH=0, tBE=0, tN=0;
+    CARDS.forEach(c=>{
+      const r=calc(c,S.price), q=S.qty[c.id]||0;
+      const type=c.custom ? 'custom' : hasOverride(c.id) ? 'override' : c.est ? 'estimated' : 'verified';
+      rows.push([c.name, type, c.arch, c.power, q, baseYield(c), r.eff, r.grossDay, r.grossH, r.be, r.net, r.net*q]);
+      tQ+=q; tW+=q*c.power; tY+=r.eff*q; tGD+=r.grossDay*q; tGH+=r.grossH*q; tBE+=r.be*q; tN+=r.net*q;
+    });
+    rows.push(['Fleet total','','',tW,tQ,'',tY,tGD,tGH,tBE,tN,tN]);
+    const text='﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n';
+    const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
+    const a=document.createElement('a');
+    a.href=url; a.download='pearlrate-'+day+'.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }
+  $('#csvBtn').addEventListener('click',exportCsv);
+
+  // ---- custom GPUs: add / edit / remove ----
+  const gpuForm=$('#gpuForm'), addGpuBtn=$('#addGpuBtn');
+  const gf={name:$('#gfName'), power:$('#gfPower'), yld:$('#gfYield'), err:$('#gfErr'), save:$('#gfSave'), remove:$('#gfRemove'), title:$('#gpuFormTitle')};
+  let gfEditing=null;
+  function setGfError(msg, field){
+    gf.err.textContent=msg;
+    [gf.name, gf.power, gf.yld].forEach(i=>{ if(i===field) i.setAttribute('aria-invalid','true'); else i.removeAttribute('aria-invalid'); });
+    if(field) field.focus();
+  }
+  function openGpuForm(id){
+    const g=id ? S.custom.find(x=>x.id===id) : null;
+    gfEditing=g ? g.id : null;
+    gf.title.textContent = g ? 'Edit '+g.name : 'Add a custom GPU';
+    gf.name.value = g ? g.name : '';
+    gf.power.value = g ? String(g.power) : '';
+    gf.yld.value = g ? String(g.yield) : '';
+    gf.save.textContent = g ? 'Save' : 'Add GPU';
+    gf.remove.hidden = !g;
+    setGfError('', null);
+    gpuForm.hidden=false;
+    addGpuBtn.setAttribute('aria-expanded','true');
+    gf.name.focus();
+    if(gpuForm.scrollIntoView) gpuForm.scrollIntoView({block:'nearest'});
+  }
+  function closeGpuForm(focusId){
+    gpuForm.hidden=true;
+    gfEditing=null;
+    addGpuBtn.setAttribute('aria-expanded','false');
+    const t=focusId && rowsEl.querySelector('.gedit[data-edit="'+focusId+'"]');
+    (t || addGpuBtn).focus();
+  }
+  addGpuBtn.addEventListener('click',()=>{
+    if(!gpuForm.hidden && !gfEditing) closeGpuForm(null); else openGpuForm(null);
+  });
+  gpuForm.addEventListener('submit',e=>{
+    e.preventDefault();
+    const name=gf.name.value.replace(/\s+/g,' ').trim().slice(0,40);
+    const power=parseFloat(gf.power.value), y=parseFloat(gf.yld.value);
+    if(!name) return setGfError('Give the GPU a name.', gf.name);
+    if(!(power>=1 && power<=10000)) return setGfError('Power must be between 1 and 10,000 W.', gf.power);
+    if(!(y>=0 && y<=1000)) return setGfError('Yield must be between 0 and 1,000 PRL/day.', gf.yld);
+    let id=gfEditing;
+    const g=id && S.custom.find(x=>x.id===id);
+    if(g){ g.name=name; g.power=Math.round(power); g.yield=y; }
+    else {
+      if(S.custom.length>=CUSTOM_MAX) return setGfError('You can add up to '+CUSTOM_MAX+' custom GPUs — remove one first.', null);
+      let k=1;
+      while(S.custom.some(x=>x.id==='c'+k)) k++;
+      id='c'+k;
+      S.custom.push({id, name, power:Math.round(power), yield:y});
+    }
+    persist(); refreshAll(); closeGpuForm(id);
+  });
+  gf.remove.addEventListener('click',()=>{
+    const id=gfEditing;
+    if(!id) return;
+    S.custom=S.custom.filter(x=>x.id!==id);
+    delete S.qty[id]; delete S.cost[id];
+    if(subjectSel===id){ subjectSel='fleet'; if(!preview) store.set('pearlrate:subject','fleet'); }
+    persist(); refreshAll(); closeGpuForm(null);
+  });
+  $('#gfCancel').addEventListener('click',()=>closeGpuForm(gfEditing));
+  gpuForm.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); closeGpuForm(gfEditing); } });
+
   // ---- boot ----
+  // A #s= link previews its scenario instead of the saved setup (see above).
+  const bootScenario=readScenario(location.hash);
+  if(bootScenario && bootScenario.state) enterPreview(bootScenario);
+  else if(bootScenario && bootScenario.error) showShareError(bootScenario.error);
   renderRows();
   bindPair('price','#priceRange','#priceNum',2,'#priceTick');
   bindPair('diff','#diffRange','#diffNum',2,'#diffTick');
