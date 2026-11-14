@@ -16,6 +16,14 @@
 #   BASELINE_DIFFICULTY  current baseline network difficulty (difficulty ×1.00 point; default 18098085)
 #   DIFFICULTY_URL       miningcore /api/pools URL (default AlphaPool)
 #   PRL_POOL_ID          pick a specific pool id from the /api/pools array
+#
+# Telegram alerts (all optional; alerts stay off until both Telegram secrets
+# exist — see AUTOMATION.md "Telegram alerts"). Set with `wrangler secret put`:
+#   TELEGRAM_BOT_TOKEN   bot token from @BotFather
+#   TELEGRAM_CHAT_ID     chat that receives the alerts
+#   ALERT_RULES          JSON rules (or put them in KV key "alert_rules" instead)
+#   PRICE_TOKEN          same secret as the Pages project; guards /?alerts=test
+# Never put these in [vars] here: this file is public.
 
 name = "pearlrate-price-cron"
 main = "price-cron.js"

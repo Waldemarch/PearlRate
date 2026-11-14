@@ -1288,17 +1288,20 @@
   // ---- economics ----
   function baseYield(c){ const o=S.yields[c.id]; return (typeof o==='number'&&isFinite(o))?o:c.yield; }
   function hasOverride(id){ const o=S.yields[id]; return typeof o==='number' && isFinite(o); }
-  function calc(c, P){
-    const D=Math.max(0.01,S.diff), F=Math.min(1,Math.max(0,S.fee/100));
-    const eff=baseYield(c)/D;                  // PRL/day at chosen difficulty
+  // The core maths, pure. worker/lib/calc.js holds the cron Worker's copy (for
+  // Telegram alerts); tests/e2e/specs/calc-parity.spec.js keeps the two equal.
+  function econ(baseYieldPerDay, power, P, Dmult, feePct, elec){
+    const D=Math.max(0.01,Dmult), F=Math.min(1,Math.max(0,feePct/100));
+    const eff=baseYieldPerDay/D;               // PRL/day at chosen difficulty
     const grossDay=eff*P;
     const grossH=grossDay/24;
     const be=grossH*(1-F);                     // break-even rental ceiling /h
-    const elecDay=(c.power/1000)*24*S.elec;
+    const elecDay=(power/1000)*24*elec;
     const net=grossDay*(1-F)-elecDay;          // self-mine net /day (the pool takes its fee here too)
     const bePrice=(eff>0 && F<1) ? elecDay/(eff*(1-F)) : Infinity;  // PRL price where net = 0
     return {eff, grossDay, grossH, be, net, bePrice};
   }
+  function calc(c, P){ return econ(baseYield(c), c.power, P, S.diff, S.fee, S.elec); }
 
   // ---- rent vs self-mine ----
   // Per card and day each strategy is a straight line in the PRL price P:
@@ -3391,6 +3394,15 @@
   });
   $('#gfCancel').addEventListener('click',()=>closeGpuForm(gfEditing));
   gpuForm.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); closeGpuForm(gfEditing); } });
+
+  // Read-only hook for the calc-parity test (and the curious): the exact maths
+  // and benchmark table this page runs on.
+  window.PearlRate = Object.freeze({
+    version: 1,
+    baselineDifficulty: BASELINE_DIFFICULTY,
+    cards: Object.freeze(DEFAULT_CARDS.map(c=>Object.freeze(Object.assign({}, c)))),
+    econ
+  });
 
   // ---- boot ----
   // A #s= link previews its scenario instead of the saved setup (see above).

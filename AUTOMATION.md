@@ -308,3 +308,137 @@ Unit tests (`cd worker && npm test`, Node 22.5+, no dependencies) cover the
 write path, the table creation, the medians and the regression against a fake
 D1 built on `node:sqlite`. CI runs them on every PR and before every Worker
 deploy.
+
+---
+
+# Telegram alerts
+
+The cron Worker can message you on Telegram when something you care about
+changes: the fleet starts mining at a loss, PRL drops below a price, the
+RTX 5090's break-even rent falls under the rate you charge… Rules are checked
+after **every price tick (5 min)** and **every difficulty tick (hourly)**.
+
+**Owner-only by design.** Rules live in a Worker secret (or a KV key you write
+with wrangler). The public site has no endpoint that can create, list or change
+alerts. **Off by default:** nothing runs (no KV reads, no requests) until both
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set on the Worker.
+
+## 1. Create the bot and find your chat id
+
+1. In Telegram, open **@BotFather** → `/newbot` → pick a name and a username
+   ending in `bot`. BotFather replies with the **bot token**
+   (`123456789:AA…`). Treat it like a password.
+2. Open a chat with your new bot and send it any message (for a group: add the
+   bot to the group and post a message there).
+3. Get the chat id:
+
+   ```bash
+   curl -s "https://api.telegram.org/bot<TOKEN>/getUpdates" | jq '.result[].message.chat'
+   # -> {"id": 123456789, "first_name": "...", "type": "private"}   (group ids are negative)
+   ```
+
+## 2. Secrets on the Worker
+
+```bash
+cd worker
+wrangler secret put TELEGRAM_BOT_TOKEN      # paste the BotFather token
+wrangler secret put TELEGRAM_CHAT_ID        # paste the chat id
+wrangler secret put PRICE_TOKEN             # same value as the Pages project's PRICE_TOKEN (guards the test trigger)
+jq -c . alert-rules.json | wrangler secret put ALERT_RULES    # your rules, see below
+```
+
+Secrets take effect immediately (no redeploy) and survive the CI deploys.
+Prefer KV for the rules if you'll edit them often (one extra KV read per tick,
+no write):
+
+```bash
+wrangler kv key put alert_rules "$(jq -c . alert-rules.json)" --binding PRICE_KV --remote
+```
+
+If both exist, `ALERT_RULES` wins. Never put any of these in `[vars]` in
+`worker/wrangler.toml`: that file is public.
+
+## 3. Rule format
+
+`ALERT_RULES` is a JSON array (or `{"rules":[…]}`). Each rule:
+
+| Field | Applies to | Meaning |
+|---|---|---|
+| `id` | all, required | unique, `A-Z a-z 0-9 _ . -`, ≤ 40 chars (shown in the message unless `label` is set) |
+| `type` | all, required | `price_below`, `price_above`, `difficulty_above`, `fleet_net_below`, `breakeven_rent_below` |
+| `threshold` | all | PRL price in USDT · difficulty × · fleet net $/day (default `0`) · your rental rate $/h |
+| `label` | optional | friendlier name for the message |
+| `cooldown_h` | optional | no new alert for this rule within N hours of the last one (default **6**) |
+| `margin` | optional | hysteresis, in the threshold's unit: an alert clears only once the value is past `threshold ± margin` (default 2 % of the threshold; for fleet rules 2 % of the fleet's gross $/day) |
+| `enabled` | optional | `false` keeps the rule but never fires it |
+| `fleet` | `fleet_net_below` | `{"<card id>": qty}` with ids `5090 4090 5080 5070ti 3090 5070 4060ti 3060` |
+| `custom` | `fleet_net_below` | extra GPUs: `[{"name","power" (W),"yield" (PRL/day at ×1.00),"qty"}]` |
+| `yields` | `fleet_net_below` | your benchmark overrides: `{"<card id>": PRL/day at ×1.00}` |
+| `elec`, `fee` | `fleet_net_below` | $/kWh (default 0.10) and pool fee % (default 4) |
+| `gpu` | `breakeven_rent_below` | a card id, or `{"name","power","yield"}`; optional `yield` override and `fee` (pool %, default 4) |
+
+Example `alert-rules.json`:
+
+```json
+[
+  { "id": "fleet-loss", "label": "Fleet mining at a loss", "type": "fleet_net_below", "threshold": 0,
+    "fleet": { "5090": 4, "3090": 6, "3060": 2 }, "elec": 0.10, "fee": 4,
+    "custom": [{ "name": "A6000", "power": 300, "yield": 1.2, "qty": 2 }] },
+  { "id": "price-low", "type": "price_below", "threshold": 0.50 },
+  { "id": "price-high", "type": "price_above", "threshold": 2.00, "cooldown_h": 12 },
+  { "id": "rent-5090", "label": "5090 rate too high for miners", "type": "breakeven_rent_below",
+    "gpu": "5090", "threshold": 0.35, "fee": 4 },
+  { "id": "difficulty", "type": "difficulty_above", "threshold": 1.50 }
+]
+```
+
+Messages look like:
+
+```
+PearlRate alert · Fleet mining at a loss
+Fleet self-mine net (14 GPUs, $0.1/kWh, pool 4%) is −$3.20/day, below $0.00/day.
+PRL $0.2100 · difficulty ×1.32
+```
+
+The maths is the dashboard's own. `worker/lib/calc.js` holds the Worker's copy
+of `index.html`'s `calc()` and benchmark table, and CI (`calc-parity.spec.js`)
+evaluates the page's maths in a browser and requires every figure to match
+exactly over a grid of inputs. If you change a yield or a formula, change both.
+
+## 4. How it behaves (and what it costs)
+
+- **Transitions only.** A rule messages you when it goes *ok → alert* and
+  again on *alert → ok* (a "recovered" message, sent only if the alert itself
+  was sent). While the condition holds, nothing is sent.
+- **Cooldown** stops a flapping rule from paging you repeatedly; the margin
+  (hysteresis) stops it flapping on noise in the first place.
+- **KV budget.** Rule state is one KV key, `alert_state`, written **only on a
+  transition** (or once when you edit/remove a rule). A quiet day costs 0
+  writes; reads are 1 per tick (~312/day, from the 100,000/day free reads).
+- **Stale data never alerts.** Rules are skipped if the stored price is older
+  than 3 h or the difficulty older than 30 h.
+- **Failures:** if Telegram is unreachable nothing is recorded and the next
+  tick retries; an alert problem never affects the price/difficulty update.
+  Invalid rules are skipped and logged (`wrangler tail`) and listed by the test
+  trigger.
+
+## 5. Test it
+
+```bash
+curl -s -H "Authorization: Bearer $PRICE_TOKEN" \
+  "https://pearlrate-price-cron.<your-subdomain>.workers.dev/?alerts=test" | jq
+# -> {"enabled":true,"sent":true,"market":{"price":0.92,"mult":1.18},
+#     "rules":[{"id":"price-low","value":0.92,"threshold":0.5,"active":false,"wouldBeActive":false,...}],"errors":[]}
+```
+
+It evaluates every rule against the stored price/difficulty **without
+changing any alert state**, and sends one "alerts are wired up" message
+listing each rule's current value (`&send=0` skips the message). Without the
+right `PRICE_TOKEN` it answers 401 (403 if the Worker has no `PRICE_TOKEN`
+secret at all).
+
+To turn alerts off: `wrangler secret delete TELEGRAM_CHAT_ID`.
+
+> The older `?run=1` / `?diff=1` / `?diffdebug=1` diagnostics on the Worker are
+> still unauthenticated (unchanged). Each forced call can cost a KV write, so
+> consider guarding them with the same `PRICE_TOKEN` check.

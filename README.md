@@ -25,6 +25,7 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
   - *GPU efficiency* — yield vs power bubble chart with equal-efficiency lines, the break-even line at your electricity price, and a PRL/kWh ranking
   - *Rent vs mine* — should a host rent the cards out, self-mine, or rent them and mine the idle hours? See below
 - **Rent vs mine verdict** in the summary strip, for the same GPUs as the headline numbers
+- **Telegram alerts** (owner-only, off by default): the cron Worker can message you when your fleet starts mining at a loss, PRL crosses a price, difficulty jumps or the break-even rent drops below your rate. Configured with Worker secrets, never from the public site; see [AUTOMATION.md](AUTOMATION.md#telegram-alerts)
 
 Price and difficulty follow the live values until you move their slider (manual mode); **↺ Live** switches back. Yields are editable inline (click a yield cell) so you can drop in your own benchmarks.
 
