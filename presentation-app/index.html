@@ -86,6 +86,7 @@
     }
     .nav-btn:hover { background: var(--panel); border-color: rgba(255,255,255,0.18); }
     .nav-btn:disabled { opacity: .35; cursor: default; }
+    .nav-btn:focus-visible, .dot:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 
     #dot-nav {
       display: flex;
@@ -95,6 +96,7 @@
 
     .dot {
       width: 6px; height: 6px;
+      padding: 0; border: 0;
       border-radius: 50%;
       background: var(--ink3);
       cursor: pointer;
@@ -121,6 +123,8 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      justify-content: safe center;   /* tall slides scroll instead of clipping their top */
+      overflow-y: auto;
       opacity: 0;
       transform: translateX(40px);
       pointer-events: none;
@@ -189,9 +193,9 @@
     }
 
     /* ── Cards grid ───────────────────────────────────────────────────── */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 
     .card {
       background: var(--panel);
@@ -225,9 +229,11 @@
       border-radius: var(--radius-sm);
       padding: 16px 20px;
       font-size: 12.5px;
-      line-height: 1.7;
+      line-height: 1.55;
       color: #c9d1d9;
       overflow-x: auto;
+      white-space: pre;
+      tab-size: 2;
     }
 
     .code-block .kw  { color: #ff7b72; }
@@ -349,7 +355,7 @@
     /* ── Slide 3 — arch diagram ───────────────────────────────────────── */
     .arch-diagram {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
       margin-top: 4px;
     }
@@ -385,15 +391,17 @@
 
     .arch-item {
       font-size: 12.5px;
+      line-height: 1.5;
       color: var(--ink2);
-      padding: 5px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      padding: 5px 0 5px 17px;
+      position: relative;   /* text + inline <code> flow as one line that wraps cleanly */
     }
     .arch-item::before {
       content: '▸';
+      position: absolute;
+      left: 0; top: 5px;
       font-size: 9px;
+      line-height: 18.75px;
       color: var(--ink3);
     }
 
@@ -426,13 +434,13 @@
     /* ── Two-column layout ────────────────────────────────────────────── */
     .two-col {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 24px;
       align-items: start;
     }
     .two-col-wide {
       display: grid;
-      grid-template-columns: 3fr 2fr;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       gap: 24px;
       align-items: start;
     }
@@ -467,6 +475,31 @@
     .mt-16 { margin-top: 16px; }
     .mt-20 { margin-top: 20px; }
     .gap-12 { gap: 12px; }
+
+    /* ── Phones / narrow windows ──────────────────────────────────────── */
+    @media (max-width: 760px) {
+      .slide { padding: 56px 20px 112px; justify-content: flex-start; }
+      .grid-2, .grid-3, .grid-4, .two-col, .two-col-wide, .arch-diagram,
+      .slide [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+      .subtitle { font-size: 14px; }
+      .flow-step { white-space: normal; }
+      .code-block { font-size: 11px !important; padding: 12px 14px; }
+      .title-pearl-logo { width: 48px; height: 48px; font-size: 24px; margin-bottom: 20px; }
+      #slide-counter { top: 14px; right: 16px; }
+      #nav { bottom: 16px; width: calc(100% - 32px); justify-content: space-between; }
+      .nav-btn { padding: 11px 16px; font-size: 12px; }
+      /* fade content out under the fixed navigation */
+      body::after {
+        content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 104px; z-index: 99; pointer-events: none;
+        background: linear-gradient(to bottom, transparent, var(--bg) 55%);
+      }
+    }
+    @media (max-width: 480px) {
+      #dot-nav { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slide, #progress-bar, .dot, .nav-btn { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -593,8 +626,7 @@
     <h2>Zero-Dependency SPA</h2>
     <div class="two-col">
       <div>
-        <div class="code-block">
-<span class="cmt">// State object – persisted to localStorage</span>
+        <div class="code-block"><span class="cmt">// State object – persisted to localStorage</span>
 <span class="var">S</span> = {
   <span class="var">price</span>: <span class="num">1.45</span>,   <span class="cmt">// PRL/USDT (live)</span>
   <span class="var">diff</span>:  <span class="num">1.00</span>,   <span class="cmt">// network difficulty</span>
@@ -646,8 +678,7 @@
     <h2>Edge Logic — Pages Functions &amp; Cron Worker</h2>
     <div class="two-col">
       <div>
-        <div class="code-block" style="font-size:11.5px;">
-<span class="cmt">// worker/wrangler.toml</span>
+        <div class="code-block" style="font-size:11.5px;"><span class="cmt">// worker/wrangler.toml</span>
 name = <span class="str">"pearlrate-price-cron"</span>
 main = <span class="str">"price-cron.js"</span>
 compatibility_date = <span class="str">"2025-05-29"</span>
@@ -662,8 +693,7 @@ sources = [
   fromCoinGecko      <span class="cmt">// coin-id: "wrapped-pearl"</span>
 ]</div>
 
-        <div class="code-block mt-12" style="font-size:11.5px;">
-<span class="cmt">// functions/api/price.js — GET /api/price</span>
+        <div class="code-block mt-12" style="font-size:11.5px;"><span class="cmt">// functions/api/price.js — GET /api/price</span>
 <span class="kw">export async function</span> <span class="fn">onRequestGet</span>(ctx) {
   <span class="kw">const</span> raw = <span class="kw">await</span> ctx.env.<span class="var">PRICE_KV</span>
     .<span class="fn">get</span>(<span class="str">"prl_price"</span>)
@@ -713,8 +743,7 @@ sources = [
             Klucz: <code>"prl_price"</code><br/>
             Wartość (JSON):
           </div>
-          <div class="code-block mt-8">
-{
+          <div class="code-block mt-8">{
   <span class="var">"price"</span>: <span class="num">1.45</span>,
   <span class="var">"ts"</span>:    <span class="num">1716998400000</span>,
   <span class="var">"source"</span>: <span class="str">"dexscreener:wprl-ethereum"</span>
@@ -732,8 +761,7 @@ sources = [
             DB name: <code>pearlrate-history</code><br/>
             ID: <code style="font-size:10.5px;">733d5091-4c91-48d3-b1d8-c1488f9121f0</code>
           </div>
-          <div class="code-block mt-8">
-<span class="kw">CREATE TABLE</span> prl_price (
+          <div class="code-block mt-8"><span class="kw">CREATE TABLE</span> prl_price (
   id    INTEGER <span class="kw">PRIMARY KEY</span> AUTOINCREMENT,
   ts    INTEGER <span class="kw">NOT NULL</span>,   <span class="cmt">-- ms epoch</span>
   price REAL    <span class="kw">NOT NULL</span>,   <span class="cmt">-- USD/USDT</span>
@@ -743,8 +771,7 @@ sources = [
             Downsampling do <strong>300 punktów</strong> (<code>TARGET_POINTS</code>) przez uśrednianie w buckietach czasowych.
           </div>
         </div>
-        <div class="code-block mt-12" style="font-size:11.5px;">
-<span class="cmt">// GET /api/history?range=24h|7d|30d|all</span>
+        <div class="code-block mt-12" style="font-size:11.5px;"><span class="cmt">// GET /api/history?range=24h|7d|30d|all</span>
 <span class="kw">const</span> since = Date.now() - <span class="num">7</span>*<span class="num">24</span>*<span class="num">3600</span>*<span class="num">1000</span>
 <span class="kw">const</span> rows = <span class="kw">await</span> env.<span class="var">PRICE_DB</span>
   .<span class="fn">prepare</span>(<span class="str">"SELECT ts,price FROM prl_price WHERE ts>? ORDER BY ts"</span>)
@@ -855,8 +882,7 @@ sources = [
     <h2>Deploy na Cloudflare Pages</h2>
     <div class="two-col-wide">
       <div>
-        <div class="code-block" style="font-size:11.5px;">
-<span class="cmt"># wrangler.toml — Cloudflare Pages</span>
+        <div class="code-block" style="font-size:11.5px;"><span class="cmt"># wrangler.toml — Cloudflare Pages</span>
 name = <span class="str">"pearlrate"</span>
 pages_build_output_dir = <span class="str">"."</span>   <span class="cmt"># root = output</span>
 compatibility_date = <span class="str">"2025-05-29"</span>
@@ -877,8 +903,7 @@ main = <span class="str">"price-cron.js"</span>
 [triggers]
 crons = [<span class="str">"*/5 * * * *"</span>]</div>
 
-        <div class="code-block mt-12" style="font-size:11.5px;">
-<span class="cmt"># Konfiguracja sekretów przez Wrangler CLI</span>
+        <div class="code-block mt-12" style="font-size:11.5px;"><span class="cmt"># Konfiguracja sekretów przez Wrangler CLI</span>
 <span class="fn">wrangler</span> secret put <span class="var">PRICE_TOKEN</span>
 <span class="fn">wrangler</span> secret put <span class="var">COINGECKO_API_KEY</span>  <span class="cmt"># opcjonalny</span>
 
@@ -978,8 +1003,10 @@ crons = [<span class="str">"*/5 * * * *"</span>]</div>
 
   // Build dots
   for (let i = 1; i <= TOTAL; i++) {
-    const d = document.createElement('div');
+    const d = document.createElement('button');
+    d.type = 'button';
     d.className = 'dot' + (i === 1 ? ' active' : '');
+    d.setAttribute('aria-label', `Slajd ${i}`);
     d.addEventListener('click', () => goTo(i));
     dotNav.appendChild(d);
   }
@@ -993,7 +1020,8 @@ crons = [<span class="str">"*/5 * * * *"</span>]</div>
     const goingForward = n > current;
 
     prev.classList.remove('active');
-    prev.classList.add(goingForward ? 'out-left' : '');
+    // (classList.add('') throws, which used to blank the screen on "Poprzedni")
+    if (goingForward) prev.classList.add('out-left');
     // Reset old slide after transition
     setTimeout(() => { prev.classList.remove('out-left'); }, 380);
 
@@ -1017,7 +1045,13 @@ crons = [<span class="str">"*/5 * * * *"</span>]</div>
     // Dots
     document.querySelectorAll('.dot').forEach((d, i) => {
       d.classList.toggle('active', i + 1 === current);
+      if (i + 1 === current) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current');
     });
+    document.querySelectorAll('.slide').forEach(sl => {
+      if (sl.id === `slide-${current}`) sl.removeAttribute('aria-hidden'); else sl.setAttribute('aria-hidden', 'true');
+    });
+    const act = document.getElementById(`slide-${current}`);
+    if (act) act.scrollTop = 0;
     // Buttons
     btnPrev.disabled = current === 1;
     btnNext.disabled = current === TOTAL;
