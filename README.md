@@ -15,6 +15,7 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 - **Break-even rent/h** — the max hourly rental a miner can pay and still profit (your pricing ceiling as a host)
 - **Self-mine net/day** — running your own card: gross minus pool fee, minus electricity
 - **Fleet totals** — enter quantities per card to size your whole fleet
+- **Summary strip** — the headline numbers at the top: self-mine net/day (≈ per month), break-even rent/h, gross/day and the break-even PRL price, for your fleet (or one RTX 5090 until you set a Qty)
 - **Live market badge** — PRL price, 24h change and sparkline, refreshed every minute while the tab is open
 - **Price history chart** — hover/tap/arrow-key tooltip, high/low markers, and break-even lines showing the PRL price at which each card in your fleet stops covering its electricity
 - **Analysis** (your fleet, or any single card):
