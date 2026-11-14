@@ -18,6 +18,7 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 - **Summary strip** — the headline numbers at the top: self-mine net/day (≈ per month), break-even rent/h, gross/day and the break-even PRL price, for your fleet (or one RTX 5090 until you set a Qty)
 - **Live market badge** — PRL price, 24h change and sparkline, refreshed every minute while the tab is open
 - **Price history chart** — hover/tap/arrow-key tooltip, high/low markers, and break-even lines showing the PRL price at which each card in your fleet stops covering its electricity
+- **Network difficulty chart** — daily medians of the hourly difficulty readings (30d / 90d / all) with the fitted trend and the **measured monthly growth** (log-linear regression); *Payback & ROI* starts from that measured growth ("measured over N days") until you set your own, and keeps the 5% default while there's less than a week of history
 - **Analysis** (your fleet, or any single card), one tab at a time (arrow keys move between tabs; the open tab is remembered):
   - *Profitability map* — net $/day across PRL price × difficulty, with the break-even line, safety margins ("PRL can fall 66% before a loss") and click-to-try scenarios
   - *Payback & ROI* — enter what the hardware cost, assume a monthly difficulty growth and price trend, and get the payback date plus a cumulative-profit chart with a ±3 pp band
@@ -93,7 +94,7 @@ wrangler pages deploy . --project-name=pearlrate
 
 ## Tests
 
-Every pull request and every push to `master` runs `.github/workflows/e2e.yml`:
+Every pull request and every push to `master` runs `.github/workflows/e2e.yml` (Worker unit tests + Playwright):
 
 - **Playwright e2e** (`tests/e2e/`) — loads the real `index.html` from a tiny static server, with `/api/*` mocked deterministically and the clock fixed (so "3 min ago" is exact). It covers live/manual mode, the table and fleet totals, the summary strip, charts and tooltips, the Analysis section, theme, persistence, the failure / loading / stale states, the phone layout (390 px, no sideways scroll, 40 px tap targets) and a WCAG AA contrast audit in both themes. On failure the HTML report (with traces) is uploaded as a build artifact.
 
@@ -113,13 +114,19 @@ Already have a Chromium/Chrome binary? Skip the download and point the suite at 
 PW_CHROMIUM_PATH=/path/to/chrome npx playwright test
 ```
 
+The Worker has its own unit tests (Node 22.5+, no dependencies — `node:test` with a fake D1 on `node:sqlite`):
+
+```bash
+cd worker && npm test
+```
+
 The test tooling lives in its own `tests/e2e/package.json` on purpose: there is **no `package.json` at the repo root**, so Cloudflare Pages (build output = repo root, no build command) never installs dependencies or ships `node_modules`.
 
 ## Files
 - `index.html` — the entire app (HTML + CSS + JS, no dependencies except Google Fonts)
 - `_headers` — Cloudflare Pages security + cache headers
-- `functions/api/` — Pages Functions (live price, difficulty, history); see [AUTOMATION.md](AUTOMATION.md)
-- `worker/` — the scheduled Cloudflare Worker that keeps the live data fresh
+- `functions/api/` — Pages Functions (live price, difficulty, price history, difficulty history); see [AUTOMATION.md](AUTOMATION.md)
+- `worker/` — the scheduled Cloudflare Worker that keeps the live data fresh (`lib/` shared modules, `test/` node:test unit tests)
 - `tests/e2e/` — Playwright suite (own `package.json`; not part of the site build)
 - `.github/workflows/` — CI: tests on every PR, Worker deploy on `master`
 - `.gitignore`

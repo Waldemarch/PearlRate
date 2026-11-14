@@ -245,3 +245,66 @@ Net effect: a quiet day now costs roughly **50 writes (~5% of quota)** instead
 of ~580, with plenty of headroom for price volatility. (`?run=1` / `?diff=1`
 force a write regardless, for testing.) D1 history writes are unchanged — D1 has
 its own, separate quota.
+
+---
+
+# Network difficulty history (D1)
+
+The hourly difficulty tick (`7 * * * *`) also appends **one row per tick** to
+D1, so the dashboard can chart the network difficulty and **measure** how fast
+it grows instead of assuming it:
+
+```
+ cron Worker (hourly)                      D1 pearlrate-history
+ updateDifficulty() ── appendDifficulty ──▶ prl_difficulty(ts, difficulty, source)
+                                                     │
+ index.html ◀── GET /api/difficulty-history ◀────────┘  daily medians + growth fit
+```
+
+- **No KV cost.** The KV write-on-change logic above is untouched; history goes
+  to D1 only (24 rows/day, far inside D1's own free quota).
+- **Table.** Created automatically on the first insert that finds it missing,
+  and the code tolerates it missing everywhere (the endpoint returns an empty
+  history). To create it up front, run once:
+
+  ```sql
+  CREATE TABLE IF NOT EXISTS prl_difficulty (ts INTEGER NOT NULL, difficulty REAL NOT NULL, source TEXT);
+  CREATE INDEX IF NOT EXISTS idx_prl_difficulty_ts ON prl_difficulty (ts);
+  ```
+
+  ```bash
+  cd worker
+  wrangler d1 execute pearlrate-history --remote \
+    --command "CREATE TABLE IF NOT EXISTS prl_difficulty (ts INTEGER NOT NULL, difficulty REAL NOT NULL, source TEXT); CREATE INDEX IF NOT EXISTS idx_prl_difficulty_ts ON prl_difficulty (ts);"
+  ```
+
+- **Endpoint.** `functions/api/difficulty-history.js`:
+
+  ```bash
+  curl "https://pearlrate.dcnb.eu/api/difficulty-history?range=90d"   # 30d | 90d | all
+  # -> {"range":"90d","first":<ms of oldest row>,"count":<rows>,
+  #     "points":[{"t":<UTC day ms>,"d":<median difficulty>,"n":<rows that day>},...],
+  #     "growth":{"monthly":0.043,"days":41,"n":41,"r2":0.97,...} | null}
+  ```
+
+  SQLite groups the hourly rows per UTC day (`GROUP_CONCAT`), the Function takes
+  the median of each day (robust to a glitchy pool reading) and fits
+  `ln(difficulty) = a + b·day` by least squares. Monthly growth = `e^(30.44·b) − 1`.
+  `growth` stays `null` until there are **7 days** of data. Responses are
+  cacheable for 5 minutes. It shares `worker/lib/difficulty-history.js` with the
+  Worker, so the Pages build bundles that file from outside `functions/`.
+
+- **UI.** A *Network difficulty* chart (daily medians and the dashed fitted
+  trend, 30d / 90d / all) under the price chart. *Payback & ROI*'s
+  "Difficulty growth / mo %" follows the 90-day measurement ("measured over N
+  days") until you move it, then shows *Manual · measured +x%/mo ↺ Measured*.
+  With less than a week of history it says "collecting since …" and keeps the
+  5% default.
+
+Test it after deploying the Worker: `curl ".../?diff=1"` now also reports
+`"history":"table created, row stored"` (first call) or `"row stored"`.
+
+Unit tests (`cd worker && npm test`, Node 22.5+, no dependencies) cover the
+write path, the table creation, the medians and the regression against a fake
+D1 built on `node:sqlite`. CI runs them on every PR and before every Worker
+deploy.

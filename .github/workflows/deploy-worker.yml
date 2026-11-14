@@ -18,6 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Never deploy a Worker that fails its own unit tests (node:test, no deps).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests
+        working-directory: worker
+        run: npm test
+
       - name: Deploy with Wrangler
         uses: cloudflare/wrangler-action@v3
         with:

@@ -406,6 +406,13 @@
   .ctip .tt-l{margin-top:3px;color:var(--red);white-space:normal}
   .chart-msg{position:absolute;inset:6px 0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-dim);text-align:center;padding:0 16px;border:1px dashed var(--line);border-radius:12px}
   .cnote{font-size:10.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  /* Network difficulty history */
+  .chartwrap.dwrap{height:200px}
+  .chartwrap .dg-a{stop-color:var(--chart-line);stop-opacity:.2}
+  .chartwrap .dg-b{stop-color:var(--chart-line);stop-opacity:0}
+  .chartwrap .darea{fill:url(#dg)}
+  .chartwrap .dtrend{fill:none;stroke:var(--ink-dim);stroke-width:1.5;stroke-dasharray:5 4}
+  .cs-g{font-weight:600;color:var(--ink)}
   .cnote[hidden]{display:none}
   .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 0}
   button.reset{
@@ -516,6 +523,7 @@
     tbody td.c-net,tfoot td.c-net{grid-column:span 3;align-items:flex-end;text-align:right}
     .yieldcell{margin:0 -4px}
     .chartwrap{height:220px}
+    .chartwrap.dwrap{height:180px}
     .chartcard{padding:14px 14px 10px}
   }
 
@@ -922,6 +930,28 @@
     <p class="cnote" id="beNote"></p>
   </div>
 
+  <div class="chartcard" id="diffCard">
+    <div class="chead">
+      <div class="ctitle">
+        <h3><span class="dot"></span> Network difficulty</h3>
+        <div class="cstats" id="dStats"></div>
+      </div>
+      <div class="cctl">
+        <div class="ranges" id="dRanges">
+          <button type="button" data-drange="30d">30d</button>
+          <button type="button" data-drange="90d">90d</button>
+          <button type="button" data-drange="all">All</button>
+        </div>
+      </div>
+    </div>
+    <div class="chartwrap dwrap" id="dWrap">
+      <svg id="dSvg" role="img" tabindex="0" aria-label="Network difficulty history"></svg>
+      <div class="ctip" id="dTip" hidden></div>
+      <div class="chart-msg" id="dMsg" style="display:none"></div>
+    </div>
+    <p class="cnote">Daily median of the hourly readings, as × of the 18.1M baseline the yields are stated at. Dashed: the log-linear trend over the range — the measured monthly growth that Payback &amp; ROI starts from.</p>
+  </div>
+
   <section class="analysis" id="analysis" aria-labelledby="anTitle">
     <div class="anbar">
       <div class="antitle">
@@ -969,7 +999,7 @@
           <div class="ctl">
             <div class="top"><label for="growthNum">Difficulty growth / mo %</label><input class="num" id="growthNum" type="number" step="1" value="5" /></div>
             <div class="rangebox"><input type="range" id="growthRange" min="-10" max="30" step="1" value="5" aria-label="Difficulty growth per month, percent" /></div>
-            <div class="hint">The shaded band is ±3 pp around this</div>
+            <div class="hint" id="growthHint">The shaded band is ±3 pp around this</div>
           </div>
           <div class="ctl">
             <div class="top"><label for="trendNum">PRL price change / mo %</label><input class="num" id="trendNum" type="number" step="1" value="0" /></div>
@@ -1132,7 +1162,7 @@
   const BUILTIN_IDS = DEFAULT_CARDS.map(c=>c.id);
   const CUSTOM_MAX = 20;
   function freshState(){
-    return Object.assign({}, DEFAULTS, {horizon:12, qty:{}, yields:{}, cost:{}, rate:{}, live:{price:true, diff:true}, custom:[]});
+    return Object.assign({}, DEFAULTS, {horizon:12, qty:{}, yields:{}, cost:{}, rate:{}, live:{price:true, diff:true, growth:true}, custom:[]});
   }
   const isObj = o => !!o && typeof o==='object' && !Array.isArray(o);
   // Custom GPUs: [{id:'c1', name, power (W), yield (PRL/day at ×1.00)}]. Also fed
@@ -1162,6 +1192,9 @@
     if(!isObj(st.live)) st.live={price:true, diff:true};
     st.live.price=st.live.price!==false; st.live.diff=st.live.diff!==false;
     Object.keys(DEFAULTS).forEach(k=>{ if(typeof st[k]!=='number' || !isFinite(st[k])) st[k]=DEFAULTS[k]; });
+    // ROI difficulty growth follows the measured value (live.growth) until you
+    // move its slider. Older saves: an untouched 5% default counts as "follow".
+    if(typeof st.live.growth!=='boolean') st.live.growth = st.growth===DEFAULTS.growth;
     return st;
   }
   let S = normalizeState(store.get('pearlrate:state', null));
@@ -1622,7 +1655,7 @@
       el.appendChild(b);
     }
   }
-  function renderHints(){ renderHint('price'); renderHint('diff'); }
+  function renderHints(){ renderHint('price'); renderHint('diff'); renderGrowthHint(); }
 
   // While a shared link is being previewed nothing is saved: the visitor's own
   // setup stays in localStorage until they pick "Keep" (see the share bar).
@@ -1635,6 +1668,7 @@
   }
   // Re-render everything after S was replaced wholesale (reset, shared link, back).
   function refreshAll(){
+    if(S.live.growth) S.growth = MEAS.status==='ok' ? MEAS.pct : DEFAULTS.growth;
     rebuildCards();
     renderRows();
     ['price','diff','elec','fee','growth','trend','rfee','rocc','ridle'].forEach(syncControl);
@@ -2141,6 +2175,218 @@
   const onResize=()=>{ cancelAnimationFrame(rsz); rsz=requestAnimationFrame(drawChart); };
   if('ResizeObserver' in window) new ResizeObserver(onResize).observe(chartWrap);
   else window.addEventListener('resize',onResize);
+
+  // ======== Network difficulty history (D1 via /api/difficulty-history) ========
+  // The cron Worker stores one reading per hour; the endpoint returns daily
+  // medians plus a log-linear growth fit. The 90-day fit ("measured over N
+  // days") is what Payback & ROI's growth input follows until you move it.
+  const dSvg=$('#dSvg'), dWrap=$('#dWrap'), dTip=$('#dTip'), dMsg=$('#dMsg'), dStats=$('#dStats');
+  const D_LABEL={'30d':'30 days','90d':'90 days','all':'all time'};
+  const MEASURE_RANGE='90d', GROWTH_MIN_DAYS=7;
+  const dh={range:store.get('pearlrate:drange','90d'), cache:{}, pending:{}, data:null, geo:null, hover:-1, seq:0};
+  if(!D_LABEL[dh.range]) dh.range='90d';
+  // Measured growth for ROI: {status:'loading'|'ok'|'collecting'|'empty'|'off'|'error', pct, days, first}
+  let MEAS={status:'loading'};
+
+  function dSetMsg(text){
+    if(text==null){ dMsg.style.display='none'; return; }
+    dMsg.textContent=text; dMsg.style.display='flex';
+  }
+  function fetchDiffHistory(range){
+    const c=dh.cache[range];
+    if(c && Date.now()-c.at<HISTORY_TTL_MS) return Promise.resolve(c.data);
+    if(dh.pending[range]) return dh.pending[range];
+    const p=fetchJSON('/api/difficulty-history?range='+range, 8000).then(d=>{
+      const pts=((d && d.points) || []).map(x=>({t:Number(x.t), d:Number(x.d), n:Number(x.n)||0}))
+        .filter(x=>isFinite(x.t) && x.d>0).sort((a,b)=>a.t-b.t);
+      const g=d && d.growth, ok=g && isFinite(g.monthly) && isFinite(g.days);
+      const data={points:pts, first:isFinite(Number(d && d.first)) && d.first!=null ? Number(d.first) : null,
+                  count:Number(d && d.count)||0, growth: ok ? g : null};
+      dh.cache[range]={at:Date.now(), data};
+      return data;
+    });
+    dh.pending[range]=p;
+    const clear=()=>{ delete dh.pending[range]; };
+    p.then(clear,clear);
+    return p;
+  }
+  const growthTxt = g => (g.monthly>=0?'+':'−')+fmtNum(Math.abs(g.monthly*100),1)+'%/mo';
+  function collectingTxt(first){
+    const n=Math.max(1, Math.floor((Date.now()-first)/DAY)+1);
+    return 'Collecting since '+fmtDate(first)+' — '+n+' day'+(n>1?'s':'')+' so far; growth is measured from '+GROWTH_MIN_DAYS+' days';
+  }
+
+  function setMeasured(data, err){
+    if(err) MEAS={status: err===503 ? 'off' : 'error'};
+    else if(data.growth) MEAS={status:'ok', pct:Math.round(data.growth.monthly*1000)/10, days:data.growth.days, first:data.first};
+    else if(data.count>0 && data.first!=null) MEAS={status:'collecting', first:data.first};
+    else MEAS={status:'empty'};
+    if(S.live.growth){
+      const want = MEAS.status==='ok' ? MEAS.pct : DEFAULTS.growth;
+      if(S.growth!==want){ S.growth=want; syncControl('growth'); persist(); drawAnalysis(); }
+    }
+    renderGrowthHint();
+  }
+  function refreshMeasured(){
+    fetchDiffHistory(MEASURE_RANGE).then(d=>setMeasured(d), e=>setMeasured(null, e||'error'));
+  }
+  // ROI growth hint: measured / collecting / default, or manual with a way back.
+  const growthHint=$('#growthHint');
+  function renderGrowthHint(){
+    if(!growthHint) return;
+    let dot='', text, back=false;
+    if(S.live.growth){
+      if(MEAS.status==='ok'){ dot='live'; text='Measured over '+MEAS.days+' days · band ±3 pp'; }
+      else if(MEAS.status==='collecting') text='Default 5% · difficulty history collecting since '+fmtDate(MEAS.first)+' ('+GROWTH_MIN_DAYS+' days needed)';
+      else text='Default 5% · the shaded band is ±3 pp around this';
+    } else {
+      back = MEAS.status==='ok';
+      text = back ? 'Manual · measured '+(MEAS.pct>=0?'+':'−')+fmtNum(Math.abs(MEAS.pct),1)+'%/mo' : 'Your assumption · band ±3 pp';
+    }
+    const sig=dot+'|'+text+'|'+back;
+    if(growthHint._sig===sig) return;
+    growthHint._sig=sig; growthHint.textContent='';
+    if(dot){ const d=document.createElement('span'); d.className='hdot'; growthHint.appendChild(d); }
+    const sp=document.createElement('span'); sp.textContent=text; growthHint.appendChild(sp);
+    if(back){
+      const b=document.createElement('button');
+      b.type='button'; b.className='golive'; b.id='growthLive'; b.textContent='↺ Measured';
+      b.setAttribute('aria-label','Use the measured difficulty growth again');
+      growthHint.appendChild(b);
+    }
+  }
+  growthHint.addEventListener('click',e=>{
+    if(!e.target.closest('#growthLive') || MEAS.status!=='ok') return;
+    S.live.growth=true; S.growth=MEAS.pct;
+    syncControl('growth'); persist(); renderGrowthHint(); drawAnalysis();
+    $('#growthRange').focus();
+  });
+
+  function drawDiff(){
+    const data=dh.data, pts=data ? data.points : null;
+    if(!data){ dh.geo=null; dSvg.innerHTML=''; dStats.textContent=''; dTip.hidden=true; return; }
+    const g=data.growth;
+    // Stats line: today's level and the measured growth (or why there's none yet).
+    const last=pts.length ? pts[pts.length-1] : null;
+    dStats.innerHTML = (last ? '<span class="cs-now">×'+(last.d/BASELINE_DIFFICULTY).toFixed(2)+'</span><span>'+(last.d/1e6).toFixed(2)+'M</span>' : '')+
+      (g ? '<span class="cs-g">'+growthTxt(g)+'</span><span class="cs-lab">measured over '+g.days+' days</span>'
+         : data.first!=null ? '<span class="cs-lab">'+esc(collectingTxt(data.first))+'</span>' : '');
+    if(pts.length<2){
+      dh.geo=null; dSvg.innerHTML=''; dTip.hidden=true;
+      dSetMsg(data.first!=null ? collectingTxt(data.first)+'. Until then Payback & ROI assumes 5%/month.'
+                               : 'No difficulty history yet — the hourly updater records one reading per hour.');
+      return;
+    }
+    const W=dSvg.clientWidth, H=dSvg.clientHeight;
+    if(W<80 || H<80) return;
+    dSetMsg(null);
+    dSvg.setAttribute('viewBox','0 0 '+W+' '+H);
+    const padL=48, padR=58, padT=14, padB=24;
+    const plotW=W-padL-padR, plotH=H-padT-padB, yBot=padT+plotH;
+    const t0=pts[0].t, t1=pts[pts.length-1].t, tSpan=Math.max(1,t1-t0);
+    const m=pts.map(p=>p.d/BASELINE_DIFFICULTY);
+    let lo=Math.min.apply(null,m), hi=Math.max.apply(null,m);
+    if(g){ lo=Math.min(lo,g.fromD/BASELINE_DIFFICULTY,g.toD/BASELINE_DIFFICULTY); hi=Math.max(hi,g.fromD/BASELINE_DIFFICULTY,g.toD/BASELINE_DIFFICULTY); }
+    const padV=Math.max((hi-lo)*0.1, hi*0.01);
+    lo=Math.max(0,lo-padV); hi+=padV;
+    const step=niceStep(hi-lo, plotH<150 ? 3 : 4);
+    lo=Math.max(0,Math.floor(lo/step)*step); hi=Math.ceil(hi/step)*step;
+    if(hi<=lo) hi=lo+step;
+    const X=t=>padL+(t-t0)/tSpan*plotW, Y=v=>padT+(1-(v-lo)/(hi-lo))*plotH, f1=v=>v.toFixed(1);
+    const dp=Math.max(2, stepDp(step));
+    const out=['<defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="dg-a"/><stop offset="1" class="dg-b"/></linearGradient></defs>'];
+    for(let k=0;k<40;k++){
+      const v=lo+k*step; if(v>hi+step*1e-6) break;
+      out.push('<line class="grid" x1="'+padL+'" x2="'+(padL+plotW)+'" y1="'+f1(Y(v))+'" y2="'+f1(Y(v))+'"/>'+
+               '<text class="axlab" x="'+(padL-8)+'" y="'+f1(Y(v)+3)+'" text-anchor="end">×'+v.toFixed(dp)+'</text>');
+    }
+    timeTicks(t0,t1,Math.max(2,Math.min(8,Math.floor(plotW/64)))).forEach(tk=>{
+      const x=f1(X(tk.t));
+      out.push('<line class="axis" x1="'+x+'" x2="'+x+'" y1="'+yBot+'" y2="'+(yBot+4)+'"/><text class="axlab" x="'+x+'" y="'+(H-5)+'" text-anchor="middle">'+tk.label+'</text>');
+    });
+    out.push('<line class="axis" x1="'+padL+'" x2="'+(padL+plotW)+'" y1="'+yBot+'" y2="'+yBot+'"/>');
+    let d='M'+f1(X(pts[0].t))+' '+f1(Y(m[0]));
+    for(let i=1;i<pts.length;i++) d+=' L'+f1(X(pts[i].t))+' '+f1(Y(m[i]));
+    out.push('<path class="darea" d="'+d+' L'+f1(X(t1))+' '+yBot+' L'+f1(X(t0))+' '+yBot+' Z"/><path class="cline" d="'+d+'"/>');
+    if(g){
+      // Fitted trend (exponential, so a gentle curve on this linear axis).
+      let td='';
+      for(let k=0;k<=24;k++){
+        const t=g.fromT+(g.toT-g.fromT)*k/24, v=g.fromD*Math.pow(g.toD/g.fromD, k/24)/BASELINE_DIFFICULTY;
+        td+=(k?' L':'M')+f1(X(Math.max(t0,t)))+' '+f1(Y(v));
+      }
+      out.push('<path class="dtrend" d="'+td+'"/>');
+    }
+    const xl=X(t1), yl=Y(m[m.length-1]);
+    out.push('<circle class="cend" cx="'+f1(xl)+'" cy="'+f1(yl)+'" r="4"/><text class="endlab" x="'+f1(xl+9)+'" y="'+f1(yl+4)+'">×'+m[m.length-1].toFixed(2)+'</text>');
+    out.push('<g class="dhov" style="display:none"><line class="hx"/><circle class="hd" r="4.5"/></g>');
+    dSvg.innerHTML=out.join('');
+    dh.geo={pts, m, X, Y, padT, yBot, padL, plotW, t0, tSpan, W};
+    dSvg.setAttribute('aria-label','Network difficulty, '+D_LABEL[dh.range]+': ×'+m[0].toFixed(2)+' to ×'+m[m.length-1].toFixed(2)+
+      (g ? ', measured growth '+growthTxt(g)+' over '+g.days+' days' : '')+'. Use the arrow keys to read individual days.');
+    if(dh.hover>=0) dShow(Math.min(dh.hover, pts.length-1));
+  }
+  function dShow(i){
+    const g=dh.geo, grp=dSvg.querySelector('.dhov'); if(!g || !grp) return;
+    i=Math.max(0,Math.min(g.pts.length-1,i)); dh.hover=i;
+    const p=g.pts[i], x=g.X(p.t), y=g.Y(g.m[i]);
+    const hx=grp.querySelector('.hx'), hd=grp.querySelector('.hd');
+    hx.setAttribute('x1',x); hx.setAttribute('x2',x); hx.setAttribute('y1',g.padT); hx.setAttribute('y2',g.yBot);
+    hd.setAttribute('cx',x); hd.setAttribute('cy',y); grp.style.display='';
+    const ud=new Date(p.t);
+    tipRows(dTip,[['tt-v','×'+g.m[i].toFixed(3)], ['tt-t',ud.getUTCDate()+' '+MON[ud.getUTCMonth()]+' '+ud.getUTCFullYear()+' (UTC day)'], ['tt-f',(p.d/1e6).toFixed(2)+'M network difficulty'],
+                  p.n ? ['tt-h','median of '+p.n+' reading'+(p.n>1?'s':'')] : null]);
+    placeTip(dTip, dWrap, x, Math.max(y, 60));
+  }
+  function dHide(){ dh.hover=-1; dTip.hidden=true; const grp=dSvg.querySelector('.dhov'); if(grp) grp.style.display='none'; }
+  function dAt(e){
+    const g=dh.geo, pt=g && svgPoint(dSvg,e); if(!pt) return;
+    const t=g.t0+(pt.x-g.padL)/g.plotW*g.tSpan;
+    let best=0;
+    g.pts.forEach((p,i)=>{ if(Math.abs(p.t-t)<Math.abs(g.pts[best].t-t)) best=i; });
+    dShow(best);
+  }
+  dSvg.addEventListener('pointermove',dAt);
+  dSvg.addEventListener('pointerdown',dAt);
+  dSvg.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') dHide(); });
+  dSvg.addEventListener('pointercancel',dHide);
+  dSvg.addEventListener('blur',dHide);
+  dSvg.addEventListener('keydown',e=>{
+    const g=dh.geo; if(!g) return;
+    const n=g.pts.length; let i=dh.hover<0 ? n-1 : dh.hover;
+    if(e.key==='ArrowLeft') i-=e.shiftKey?7:1; else if(e.key==='ArrowRight') i+=e.shiftKey?7:1;
+    else if(e.key==='Home') i=0; else if(e.key==='End') i=n-1;
+    else if(e.key==='Escape'){ dHide(); return; } else return;
+    e.preventDefault(); dShow(i);
+  });
+
+  function loadDiff(range){
+    dh.range=range;
+    store.set('pearlrate:drange',range);
+    $('#dRanges').querySelectorAll('button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.drange===range);
+      b.setAttribute('aria-pressed', String(b.dataset.drange===range));
+    });
+    const seq=++dh.seq;
+    dHide();
+    if(dh.geo) dWrap.classList.add('refetch'); else { dWrap.classList.add('skeleton'); dSetMsg(null); }
+    fetchDiffHistory(range).then(data=>{
+      if(seq!==dh.seq) return;
+      dWrap.classList.remove('refetch','skeleton');
+      dh.data=data; drawDiff();
+    }, err=>{
+      if(seq!==dh.seq) return;
+      dWrap.classList.remove('refetch','skeleton');
+      dh.data=null; drawDiff();
+      dSetMsg(err===503 ? 'Difficulty history not set up yet (connect the D1 binding).' : 'Difficulty history unavailable.');
+    });
+  }
+  $('#dRanges').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-drange]'); if(!b || b.dataset.drange===dh.range) return;
+    loadDiff(b.dataset.drange);
+  });
+  let drsz=0;
+  if('ResizeObserver' in window) new ResizeObserver(()=>{ cancelAnimationFrame(drsz); drsz=requestAnimationFrame(drawDiff); }).observe(dWrap);
 
   // ======== Analysis: profitability map, payback & ROI, GPU efficiency ========
   // Rough street prices per card — only a starting point for the payback maths;
@@ -2913,7 +3159,7 @@
     const y=pickNums(S.yields, BUILTIN_IDS);
     if(y) o.y=y;
     if(S.custom.length) o.c=S.custom.map(g=>[g.id, g.name, g.power, r4(g.yield)]);
-    const a={g:r4(S.growth), t:r4(S.trend), h:S.horizon}, cost=pickNums(S.cost, ids);
+    const a={g:[r4(S.growth), S.live.growth?1:0], t:r4(S.trend), h:S.horizon}, cost=pickNums(S.cost, ids);
     if(cost) a.c=cost;
     if(subjectSel!=='fleet' && cardById(subjectSel)) a.s=subjectSel;
     o.a=a;
@@ -2944,7 +3190,9 @@
     if(isObj(o.y)) Object.keys(o.y).forEach(k=>{ const v=n(o.y[k],0,1000); if(BUILTIN_IDS.indexOf(k)>=0 && v!==undefined) st.yields[k]=v; });
     let subject='fleet';
     if(isObj(o.a)){
-      setNum('growth',o.a.g,-50,100); setNum('trend',o.a.t,-50,50);
+      if(Array.isArray(o.a.g)){ setNum('growth',o.a.g[0],-50,100); st.live.growth=o.a.g[1]!==0; }
+      else { setNum('growth',o.a.g,-50,100); st.live.growth=false; }
+      setNum('trend',o.a.t,-50,50);
       if([6,12,24].indexOf(o.a.h)>=0) st.horizon=o.a.h;
       if(isObj(o.a.c)) Object.keys(o.a.c).forEach(k=>{ const v=n(o.a.c[k],0,1e6); if(ids.indexOf(k)>=0 && v!==undefined) st.cost[k]=v; });
       if(typeof o.a.s==='string' && ids.indexOf(o.a.s)>=0) subject=o.a.s;
@@ -3170,6 +3418,8 @@
   refreshDiff();
   loadChart(chart.range);
   fetchHistory('24h').then(spark).catch(()=>{});
+  loadDiff(dh.range);
+  refreshMeasured();
 
   // One heartbeat drives polling (only while the tab is visible) and the
   // "updated N min ago" labels.
@@ -3178,7 +3428,11 @@
     const now=Date.now();
     if(now-lastPriceFetch>=PRICE_POLL_MS) refreshPrice();
     if(now-lastDiffFetch>=DIFF_POLL_MS) refreshDiff();
-    if(now-lastHistoryRefresh>=HISTORY_REFRESH_MS){ lastHistoryRefresh=now; refreshHistory(); }
+    if(now-lastHistoryRefresh>=HISTORY_REFRESH_MS){
+      lastHistoryRefresh=now; refreshHistory();
+      fetchDiffHistory(dh.range).then(d=>{ dh.data=d; drawDiff(); }).catch(()=>{});
+      refreshMeasured();
+    }
     renderHints(); renderBadge();
   }
   setInterval(tick, 15000);

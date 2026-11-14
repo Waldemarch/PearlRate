@@ -8,6 +8,8 @@
 //   - Google Fonts stubbed out (empty stylesheet), so runs never touch the
 //     network and always lay out with the same fallback fonts.
 //   - console errors / page errors collected and asserted empty at teardown.
+const path = require('path');
+const { pathToFileURL } = require('url');
 const base = require('@playwright/test');
 const { expect } = base;
 
@@ -38,9 +40,27 @@ function priceHistory(range) {
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
+// The Pages Function's own maths (daily medians in, payload out), so the mock
+// answers exactly what /api/difficulty-history would for these readings.
+let diffLib;
+const loadDiffLib = async () => diffLib || (diffLib = await import(pathToFileURL(path.join(__dirname, '..', '..', 'worker', 'lib', 'difficulty-history.js')).href));
+// `days` daily medians ending today, growing `monthly` per month and reaching
+// today's live ×1.18. Today's (partial) day has 12 hourly readings.
+async function diffHistory(range, { days = 45, monthly = 0.032, mult = DIFF.mult } = {}) {
+  const lib = await loadDiffLib();
+  const today = Math.floor(NOW / DAY) * DAY, b = Math.log(1 + monthly) / lib.MONTH_DAYS;
+  const all = Array.from({ length: days }, (_, i) => {
+    const t = today - (days - 1 - i) * DAY;
+    return { t, d: BASELINE_DIFFICULTY * mult * Math.exp(b * (t - today) / DAY), n: i === days - 1 ? 12 : 24 };
+  });
+  const span = lib.RANGES[range] === undefined ? 90 : lib.RANGES[range];
+  const pts = span == null ? all : all.filter((p) => p.t >= NOW - span * DAY);
+  return json(lib.historyPayload({ days: pts, first: days ? all[0].t + 3600e3 : null, count: all.reduce((s, p) => s + p.n, 0) }, range));
+}
+
 // Default answers for every endpoint the page calls. `overrides` maps a path
 // to a function (url) => {status, body} | null (null = never answer).
-function apiResponse(url, mode, overrides) {
+async function apiResponse(url, mode, overrides) {
   const p = url.pathname;
   if (overrides && Object.prototype.hasOwnProperty.call(overrides, p)) return overrides[p](url);
   if (mode === 'slow') return null;
@@ -54,6 +74,7 @@ function apiResponse(url, mode, overrides) {
     const range = url.searchParams.get('range') || '7d';
     return json({ range, points: priceHistory(range) });
   }
+  if (p === '/api/difficulty-history') return diffHistory(url.searchParams.get('range') || '90d');
   return json({ error: 'not found' }, 404);
 }
 
@@ -79,8 +100,8 @@ async function preparePage(page, { apiMode = 'ok', apiOverrides = {}, seedState 
   await page.clock.setFixedTime(NOW);
   await page.route(/^https:\/\/fonts\.googleapis\.com\//, (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route(/^https:\/\/fonts\.gstatic\.com\//, (r) => r.abort());
-  await page.route(/\/api\//, (route) => {
-    const res = apiResponse(new URL(route.request().url()), apiMode, apiOverrides);
+  await page.route(/\/api\//, async (route) => {
+    const res = await apiResponse(new URL(route.request().url()), apiMode, apiOverrides);
     if (res) return route.fulfill(res);
     // 'slow': never answer, so the page stays in its loading state.
   });
@@ -126,5 +147,5 @@ const savedState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem
 
 module.exports = {
   test, expect, openApp, preparePage, savedState, num,
-  NOW, DAY, PRICE, DIFF, BASELINE_DIFFICULTY, FLEET_STATE, priceHistory, json,
+  NOW, DAY, PRICE, DIFF, BASELINE_DIFFICULTY, FLEET_STATE, priceHistory, diffHistory, json,
 };

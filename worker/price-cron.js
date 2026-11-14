@@ -7,6 +7,8 @@
 //         /api/difficulty). One combined key, written only on change (+ a
 //         heartbeat), to stay well under the free KV write quota.
 //   - D1  PRICE_DB  table prl_price -> full history (served by /api/history)
+//   - D1  PRICE_DB  table prl_difficulty -> one row per hourly difficulty tick
+//         (served by /api/difficulty-history; created on first write)
 //
 // This replaces the Mac-mini updater: no machine to keep awake, no shared
 // token (the writes happen inside Cloudflare via bindings, not over HTTP).
@@ -27,6 +29,8 @@
 //   PRL_GT_NETWORK      GeckoTerminal network slug (default "eth")
 //   PRL_COINGECKO_ID    CoinGecko coin id (default "wrapped-pearl")
 //   COINGECKO_API_KEY   demo key, sent as x-cg-demo-api-key
+
+import { appendDifficulty } from "./lib/difficulty-history.js";
 
 // KV is one combined key (prl_state = {price, diff}) so each scheduled run
 // touches a single key, and we only PUT when the value actually changed — the
@@ -288,6 +292,17 @@ async function updateDifficulty(env, opts) {
     await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
   }
   record.wrote = wrote;
+
+  // History -> D1: one row per tick regardless of the KV write-on-change (D1
+  // has its own, far larger quota). The table is created on first use; a
+  // missing binding or a failed insert never affects the KV update above.
+  try {
+    const h = await appendDifficulty(env.PRICE_DB, record);
+    record.history = h.stored ? (h.created ? "table created, row stored" : "row stored") : h.reason;
+  } catch (e) {
+    record.history = "failed";
+    console.error("D1 difficulty history write failed:", e && e.message);
+  }
   return record;
 }
 

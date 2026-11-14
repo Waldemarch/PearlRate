@@ -110,7 +110,7 @@ test('Keep this scenario makes it the visitor’s setup', async ({ page, browser
   expect(new URL(other.url()).hash).toBe('');
   const st = await savedState(other);
   expect(st.qty).toEqual({ 5090: 2, 4090: 1, c1: 3 });
-  expect(st.live).toEqual({ price: false, diff: true });
+  expect(st.live).toEqual({ price: false, diff: true, growth: false });   // growth was set by hand
   expect(st.price).toBe(1.3);
   await other.reload();
   await expect(other.locator('#shareBar')).toBeHidden();
