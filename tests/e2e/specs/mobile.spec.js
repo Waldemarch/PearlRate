@@ -37,3 +37,14 @@ test('tapping + adds a GPU and tapping the track moves the slider', async ({ pag
   await expect.poll(async () => num(await page.locator('#priceNum').inputValue())).toBeGreaterThan(3);
   await expect(page.locator('#priceHint')).toContainText('Manual');
 });
+
+test.describe('a long custom GPU name', () => {
+  test.use({ seedState: { ...FLEET_STATE, qty: { ...FLEET_STATE.qty, c1: 2 }, custom: [{ id: 'c1', name: 'Lab A6000 rig, the one with a long name!', power: 300, yield: 1.2 }] } });
+
+  test('wraps instead of pushing the page sideways', async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator('#rows tr.custom .nmt')).toHaveText('Lab A6000 rig, the one with a long name!');
+    expect(await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth])).toEqual([390, 390]);
+    expect(await overflowingElements(page)).toEqual([]);
+  });
+});
