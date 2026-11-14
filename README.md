@@ -53,9 +53,9 @@ Dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pi
 | Framework preset | **None** |
 | Build command | *(leave empty)* |
 | Build output directory | `/` (repo root) |
-| Production branch | `main` |
+| Production branch | `master` |
 
-**Save and Deploy.** You get `https://pearlrate.pages.dev`; add a custom domain (e.g. `pearlrate.dcnb.eu`) under **Custom domains**. Every push to `main` redeploys automatically.
+**Save and Deploy.** You get `https://pearlrate.pages.dev`; add a custom domain (e.g. `pearlrate.dcnb.eu`) under **Custom domains**. Every push to `master` redeploys automatically; other branches get preview deploys.
 
 > Nothing else is required — it's static, exactly like a `Skipping build step` deploy. The `_headers` file is read natively by Cloudflare Pages (security headers + always-fresh HTML).
 
@@ -65,9 +65,37 @@ npm i -g wrangler
 wrangler pages deploy . --project-name=pearlrate
 ```
 
+## Tests
+
+Every pull request and every push to `master` runs `.github/workflows/e2e.yml`:
+
+- **Playwright e2e** (`tests/e2e/`) — loads the real `index.html` from a tiny static server, with `/api/*` mocked deterministically and the clock fixed (so "3 min ago" is exact). It covers live/manual mode, the table and fleet totals, the summary strip, charts and tooltips, the Analysis section, theme, persistence, the failure / loading / stale states, the phone layout (390 px, no sideways scroll, 40 px tap targets) and a WCAG AA contrast audit in both themes. On failure the HTML report (with traces) is uploaded as a build artifact.
+
+Run it locally (Node 22):
+
+```bash
+cd tests/e2e
+npm ci
+npx playwright install chromium        # once; downloads the pinned browser
+npx playwright test                    # or: npm test
+npx playwright show-report             # after a failure
+```
+
+Already have a Chromium/Chrome binary? Skip the download and point the suite at it:
+
+```bash
+PW_CHROMIUM_PATH=/path/to/chrome npx playwright test
+```
+
+The test tooling lives in its own `tests/e2e/package.json` on purpose: there is **no `package.json` at the repo root**, so Cloudflare Pages (build output = repo root, no build command) never installs dependencies or ships `node_modules`.
+
 ## Files
 - `index.html` — the entire app (HTML + CSS + JS, no dependencies except Google Fonts)
 - `_headers` — Cloudflare Pages security + cache headers
+- `functions/api/` — Pages Functions (live price, difficulty, history); see [AUTOMATION.md](AUTOMATION.md)
+- `worker/` — the scheduled Cloudflare Worker that keeps the live data fresh
+- `tests/e2e/` — Playwright suite (own `package.json`; not part of the site build)
+- `.github/workflows/` — CI: tests on every PR, Worker deploy on `master`
 - `.gitignore`
 
 ## License
