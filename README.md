@@ -18,12 +18,27 @@ For RTX 5090 / 4090 / 5080 / 3090 / 3090 Ti:
 - **Summary strip** — the headline numbers at the top: self-mine net/day (≈ per month), break-even rent/h, gross/day and the break-even PRL price, for your fleet (or one RTX 5090 until you set a Qty)
 - **Live market badge** — PRL price, 24h change and sparkline, refreshed every minute while the tab is open
 - **Price history chart** — hover/tap/arrow-key tooltip, high/low markers, and break-even lines showing the PRL price at which each card in your fleet stops covering its electricity
-- **Analysis** (your fleet, or any single card):
+- **Analysis** (your fleet, or any single card), one tab at a time (arrow keys move between tabs; the open tab is remembered):
   - *Profitability map* — net $/day across PRL price × difficulty, with the break-even line, safety margins ("PRL can fall 66% before a loss") and click-to-try scenarios
   - *Payback & ROI* — enter what the hardware cost, assume a monthly difficulty growth and price trend, and get the payback date plus a cumulative-profit chart with a ±3 pp band
   - *GPU efficiency* — yield vs power bubble chart with equal-efficiency lines, the break-even line at your electricity price, and a PRL/kWh ranking
+  - *Rent vs mine* — should a host rent the cards out, self-mine, or rent them and mine the idle hours? See below
+- **Rent vs mine verdict** in the summary strip, for the same GPUs as the headline numbers
 
 Price and difficulty follow the live values until you move their slider (manual mode); **↺ Live** switches back. Yields are editable inline (click a yield cell) so you can drop in your own benchmarks.
+
+### Rent vs mine
+Enter your real rental rate in $/h per GPU model (empty = not offered), the platform's fee, the share of hours you expect to be rented (occupancy) and the idle draw per GPU. For each card and for the fleet the tab compares, per day:
+
+| Strategy | Net $/day (o = occupancy, pf = platform fee) |
+|---|---|
+| **Rent only** | rate × 24·o × (1 − pf) − power cost of the rented hours − idle-draw cost of the other hours |
+| **Rent + mine idle** | the same rentals, mining PRL in every hour the card isn't rented |
+| **Self-mine** | the table's self-mine net (mining all day) |
+
+It shows the verdict, the gap to the runner-up, a chart of all three against the PRL price with the best choice shaded, and the **PRL price at which the decision flips**. All three are straight lines in the price, so the flip prices are solved exactly, not searched. A card draws its full power whether it's rented or mining, so occupancy cancels out of *rent + mine idle vs self-mine*. Self-mining wins exactly when the break-even rent/h is above your rate after the platform fee, which is why each rate input shows the miner break-even beside it. GPUs with no rate self-mine under every strategy, so they shift the fleet totals without moving a flip price; the per-model list shows each model's own best choice.
+
+Defaults are **assumptions**, labelled as such in the UI: platform fee **25%**, occupancy **60%**, idle draw **30 W**. Set your own. All of these are saved, included in scenario links and exported to the CSV.
 
 ### Custom GPUs
 **Add GPU** (under the table) adds any card or rig with a name, its power draw in W and its yield in PRL/day at difficulty ×1.00. Custom rows carry a *Custom* chip and work everywhere the built-in cards do: quantities, fleet totals, the summary strip, the price-chart break-even lines, every Analysis view and the CSV. **Edit** on the row changes or removes it; clicking its yield edits the yield directly. They are saved with the rest of your setup (up to 20). *Reset defaults* keeps your custom GPU definitions and clears everything else.
@@ -38,7 +53,7 @@ Opening a link **previews** the scenario: a banner says so, and nothing is writt
 
 ## Data baseline
 
-Yields from public hashrate.no benchmarks, scaled to the current network difficulty (18,098,085 · 17 Jun 2026) which is the ×1.00 point. Defaults: difficulty ×1.00, electricity $0.10/kWh, pool fee 4%; PRL price is fetched live. The RTX 4090 row is an estimate (no verified PRL benchmark yet) and is flagged `est`.
+Yields from public hashrate.no benchmarks, scaled to the current network difficulty (18,098,085 · 17 Jun 2026) which is the ×1.00 point. Defaults: difficulty ×1.00, electricity $0.10/kWh, pool fee 4%; PRL price is fetched live. Rent vs mine assumes a 25% platform fee, 60% occupancy and 30 W idle draw until you change them. The RTX 4090 row is an estimate (no verified PRL benchmark yet) and is flagged `est`.
 
 ## Deploy
 

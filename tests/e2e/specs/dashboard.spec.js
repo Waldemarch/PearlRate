@@ -126,6 +126,11 @@ test.describe('analysis', () => {
     await openApp(page);
     await page.selectOption('#subject', '3090');
     await expect(page.locator('#anSub')).toContainText('1× RTX 3090');
+    await expect(page.locator('#tab-map')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#roiCard')).toBeHidden();
+    await page.click('#tab-roi');
+    await expect(page.locator('#roiCard')).toBeVisible();
+    await expect(page.locator('#mapCard')).toBeHidden();
     await page.click('#roiHorizon button[data-h="24"]');
     await expect(page.locator('#roiHorizon button[data-h="24"]')).toHaveClass(/active/);
     await expect(page.locator('#roiTiles')).toContainText('24 mo');
@@ -135,6 +140,7 @@ test.describe('analysis', () => {
     await page.mouse.move(rb.x + rb.width * 0.6, rb.y + rb.height * 0.5);
     await expect(page.locator('#roiTip')).toBeVisible();
 
+    await page.click('#tab-map');
     const map = page.locator('#mapSvg');
     await map.scrollIntoViewIfNeeded();
     const mb = await map.boundingBox();
@@ -146,8 +152,16 @@ test.describe('analysis', () => {
     await expect(page.locator('#priceNum')).toHaveValue('0.92');
     await expect(page.locator('#diffNum')).toHaveValue('1.18');
 
+    // keyboard: arrow keys move along the tab list
+    await page.focus('#tab-map');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#tab-eff')).toBeFocused();
+    await expect(page.locator('#effCard')).toBeVisible();
     await expect(page.locator('#effSvg circle.bub')).toHaveCount(8);
     await expect(page.locator('#effRank .rrow')).toHaveCount(8);
+    await page.reload();                                         // the open tab is remembered
+    await expect(page.locator('#effCard')).toBeVisible();
   });
 });
 

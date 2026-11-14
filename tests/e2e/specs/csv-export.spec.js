@@ -24,6 +24,7 @@ test.use({
     ...FLEET_STATE,
     qty: { ...FLEET_STATE.qty, c1: 2 },
     yields: { 4090: 3.5 },
+    rate: { 5090: 0.45 },
     custom: [{ id: 'c1', name: '=SUM(A1), "rig"', power: 300, yield: 1.2 }],
   },
 });
@@ -44,6 +45,9 @@ test('exports parameters, every GPU and the fleet totals', async ({ page }) => {
   expect(param['Electricity $/kWh']).toBe('0.1');
   expect(param['Pool fee %']).toBe('4');
   expect(param['Scenario link']).toMatch(/#s=/);
+  expect(param['Rental platform fee % (assumption)']).toBe('25');
+  expect(param['Expected occupancy %']).toBe('60');
+  expect(param['Idle draw W per GPU']).toBe('30');
 
   const hi = rows.findIndex((r) => r[0] === 'GPU');
   const header = rows[hi];
@@ -56,6 +60,12 @@ test('exports parameters, every GPU and the fleet totals', async ({ page }) => {
   expect(col(r5090, 'Qty')).toBe('4');
   expect(Number(col(r5090, 'Self-mine net $/day'))).toBeCloseTo(2.204014, 6);
   expect(Number(col(r5090, 'Break-even rent $/h'))).toBeCloseTo(0.142834, 6);
+  expect(col(r5090, 'Your rate $/h')).toBe('0.45');
+  expect(Number(col(r5090, 'Rent only net $/day'))).toBeCloseTo(4.0968, 6);
+  expect(Number(col(r5090, 'Rent + mine idle net $/day'))).toBeCloseTo(5.007206, 5);
+  expect(col(r5090, 'Best now')).toBe('Rent + mine idle');
+  expect(col(body[4], 'Best now')).toBe('not offered');
+  expect(col(body[4], 'Your rate $/h')).toBe('');
   expect(col(body[1], 'Type')).toBe('override');
   expect(col(body[1], 'Yield PRL/day @ ×1.00')).toBe('3.5');
   expect(col(body[3], 'Type')).toBe('estimated');

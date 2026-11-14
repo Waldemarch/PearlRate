@@ -624,6 +624,45 @@
   .rrow .rv{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
   .rrow .rv b{color:var(--ink);font-weight:600}
 
+  /* Analysis tabs */
+  .antabs{display:flex;flex-wrap:wrap;gap:2px 6px;border-bottom:1px solid var(--line);padding:0 2px;margin-bottom:-4px}
+  .antabs button{
+    background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--ink-dim);
+    font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px 8px;cursor:pointer;transition:color .15s,border-color .15s;
+  }
+  .antabs button:hover{color:var(--ink)}
+  .antabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--thumb-border)}
+  .antabs button:focus-visible{outline-offset:-2px}
+  .acard[hidden]{display:none}
+
+  /* Rent vs mine */
+  .ratelab{display:flex;flex-direction:column;min-width:0}
+  .ratelab small{font-size:10px;color:var(--ink-faint);line-height:1.35}
+  .tile.best{border-color:var(--thumb-border);box-shadow:inset 0 0 0 1px var(--thumb-border)}
+  .tile .tv.tvs{font-size:17px;line-height:1.45}
+  .rentflip{font-size:12px;color:var(--ink-dim);line-height:1.55;margin:-2px 0 10px}
+  .rentflip b{color:var(--ink);font-weight:600}
+  .rentwrap{position:relative;height:240px}
+  .rentwrap[hidden]{display:none}
+  .rentwrap svg{display:block;width:100%;height:100%;overflow:visible;touch-action:pan-y;cursor:crosshair}
+  .rentwrap .env{fill:none;stroke:var(--ink);stroke-width:7;stroke-linejoin:round;stroke-linecap:round;opacity:.13}
+  .rentwrap .sl{fill:none;stroke-width:2;stroke-linecap:round}
+  .rentwrap .zero{stroke:var(--ink-faint);stroke-width:1}
+  .rentwrap .now{stroke:var(--ink);stroke-width:1;stroke-dasharray:3 3;opacity:.6}
+  .rentwrap .flip{fill:var(--panel);stroke:var(--ink);stroke-width:1.75}
+  .rentwrap .hx{stroke:var(--ink-faint);stroke-width:1}
+  .rentempty{font-size:12px;color:var(--ink-dim);border:1px dashed var(--line);border-radius:12px;padding:18px 16px;text-align:center;margin-bottom:10px}
+  .rentempty[hidden]{display:none}
+  .rlist{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+  .rlist:empty{display:none}
+  .rlrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;font-size:11.5px;color:var(--ink-dim);padding:7px 0;border-top:1px solid var(--line-soft)}
+  .rlrow .rln{color:var(--ink);font-weight:600;min-width:9em}
+  .rlrow .rlb{color:var(--ink)}
+  .rlrow .rlv{margin-left:auto;font-variant-numeric:tabular-nums}
+  .sumverdict{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-dim);line-height:1.5}
+  .sumverdict span{flex:1 1 280px;min-width:0}
+  .sumverdict b{color:var(--ink);font-weight:600}
+
   @media(max-width:820px){
     .roigrid,.effgrid{grid-template-columns:1fr}
   }
@@ -636,6 +675,11 @@
     .tile .tv{font-size:19px}
     .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .tile{padding:9px 10px}
+    .antabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;border-bottom:0;padding:0;margin-bottom:0}
+    .antabs button{border:1px solid var(--line);border-radius:9px;margin:0;padding:9px 8px;letter-spacing:.06em}
+    .antabs button[aria-selected="true"]{border-color:var(--thumb-border);background:var(--pearl-soft)}
+    .rentwrap{height:220px}
+    .tile .tv.tvs{font-size:15px}
   }
 
   /* Buttons for the share / export / custom-GPU tools */
@@ -703,6 +747,7 @@
     .btn{min-height:37px;padding:7px 14px}
     .gedit{min-height:37px;min-width:44px;padding:6px 10px;font-size:10.5px;margin-left:8px}
     .gfgrid input,.linkbox input{min-height:37px}
+    .antabs button{min-height:37px}
     :root{--thumb:22px; --hit:34px}
     .ctl{gap:4px}
     .livetick{height:16px;margin-top:-8px}
@@ -763,6 +808,7 @@
       <div class="kpi"><span class="kl">Gross / day</span><span class="kv" id="sumGross">—</span><span class="ks" id="sumGrossSub"></span></div>
       <div class="kpi"><span class="kl">Break-even PRL price</span><span class="kv" id="sumBEP">—</span><span class="ks" id="sumBEPSub"></span></div>
     </div>
+    <p class="sumverdict" id="sumVerdict"><span id="sumVerdictTxt"></span><button type="button" class="chipbtn" id="sumVerdictBtn">Rent vs mine</button></p>
   </section>
 
   <section class="controls" id="controls">
@@ -884,8 +930,14 @@
       </div>
       <label class="ansel" for="subject">Analyse <select id="subject"></select></label>
     </div>
+    <div class="antabs" id="anTabs" role="tablist" aria-label="Analysis views">
+      <button type="button" role="tab" id="tab-map" aria-controls="mapCard" aria-selected="true">Profitability map</button>
+      <button type="button" role="tab" id="tab-roi" aria-controls="roiCard" aria-selected="false" tabindex="-1">Payback &amp; ROI</button>
+      <button type="button" role="tab" id="tab-eff" aria-controls="effCard" aria-selected="false" tabindex="-1">GPU efficiency</button>
+      <button type="button" role="tab" id="tab-rent" aria-controls="rentCard" aria-selected="false" tabindex="-1">Rent vs mine</button>
+    </div>
 
-    <div class="acard" id="mapCard">
+    <div class="acard" id="mapCard" role="tabpanel" aria-labelledby="tab-map">
       <div class="ahead">
         <div>
           <h3><span class="dot"></span> Profitability map</h3>
@@ -902,7 +954,7 @@
       <p class="cnote">Profit depends only on the ratio price ÷ difficulty, so every contour is a straight line through the origin — doubling the difficulty costs exactly as much as halving the price.</p>
     </div>
 
-    <div class="acard" id="roiCard">
+    <div class="acard" id="roiCard" role="tabpanel" aria-labelledby="tab-roi">
       <div class="ahead">
         <div>
           <h3><span class="dot"></span> Payback &amp; ROI</h3>
@@ -941,7 +993,7 @@
       </div>
     </div>
 
-    <div class="acard" id="effCard">
+    <div class="acard" id="effCard" role="tabpanel" aria-labelledby="tab-eff">
       <div class="ahead">
         <div>
           <h3><span class="dot"></span> GPU efficiency</h3>
@@ -955,6 +1007,51 @@
           <div class="ctip" id="effTip" hidden></div>
         </div>
         <div class="rank" id="effRank"></div>
+      </div>
+    </div>
+
+    <div class="acard" id="rentCard" role="tabpanel" aria-labelledby="tab-rent">
+      <div class="ahead">
+        <div>
+          <h3><span class="dot"></span> Rent vs mine</h3>
+          <p class="asub">Rent your GPUs out, mine PRL yourself, or rent them and mine the hours nobody rents them? Enter what you really charge. A card runs flat out whether it is rented or mining, so the answer flips at a single PRL price.</p>
+        </div>
+      </div>
+      <div class="roigrid">
+        <div class="roiin">
+          <div class="ctl">
+            <div class="top"><label for="rfeeNum">Platform fee %</label><input class="num" id="rfeeNum" type="number" step="1" value="25" /></div>
+            <div class="rangebox"><input type="range" id="rfeeRange" min="0" max="50" step="1" value="25" aria-label="Rental platform fee, percent of rental income" /></div>
+            <div class="hint">Assumed default 25% — set your marketplace’s cut</div>
+          </div>
+          <div class="ctl">
+            <div class="top"><label for="roccNum">Occupancy %</label><input class="num" id="roccNum" type="number" step="5" value="60" /></div>
+            <div class="rangebox"><input type="range" id="roccRange" min="0" max="100" step="5" value="60" aria-label="Expected occupancy, percent of hours rented" /></div>
+            <div class="hint">Share of hours a renter actually pays for</div>
+          </div>
+          <div class="ctl">
+            <div class="top"><label for="ridleNum">Idle draw W / GPU</label><input class="num" id="ridleNum" type="number" step="5" value="30" /></div>
+            <div class="rangebox"><input type="range" id="ridleRange" min="0" max="150" step="5" value="30" aria-label="Idle power draw per GPU, watts" /></div>
+            <div class="hint">Power while listed but neither rented nor mining</div>
+          </div>
+          <div>
+            <div class="costhead">Your rental rate per GPU</div>
+            <div id="rentRates"></div>
+            <div class="costnote">$/h you charge, before the platform fee. Empty = not offered for rent.</div>
+          </div>
+        </div>
+        <div class="roiout">
+          <div class="tiles" id="rentTiles"></div>
+          <p class="rentflip" id="rentFlip"></p>
+          <p class="rentempty" id="rentEmpty" hidden>Enter a rental rate on the left to compare renting with self-mining.</p>
+          <div class="rentwrap" id="rentWrap">
+            <svg id="rentSvg" role="img" aria-label="Net profit per day of each strategy across PRL prices"></svg>
+            <div class="ctip" id="rentTip" hidden></div>
+          </div>
+          <div class="alegend" id="rentLegend"></div>
+          <div class="rlist" id="rentList"></div>
+          <p class="cnote">Rent only: rented hours earn your rate minus the platform fee; the other hours idle at the idle draw. Rent + mine idle: the same rentals, mining PRL whenever the card isn’t rented. Self-mine: mining all day — the table’s net. You pay the electricity in every case. All three are straight lines in the PRL price, so each flip price is exact.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -1008,7 +1105,9 @@
     {id:'4060ti',name:'RTX 4060 Ti', arch:'Ada',       yield:0.88, power:155, est:true },
     {id:'3060',  name:'RTX 3060',    arch:'Ampere',    yield:0.55, power:160, est:true },
   ];
-  const DEFAULTS = {price:1.45, diff:1.00, elec:0.10, fee:4, growth:5, trend:0};
+  // rfee / rocc / ridle: rental platform fee %, expected occupancy %, idle draw W per GPU
+  // (labelled assumptions in the Rent vs mine view).
+  const DEFAULTS = {price:1.45, diff:1.00, elec:0.10, fee:4, growth:5, trend:0, rfee:25, rocc:60, ridle:30};
   const BASELINE_DIFFICULTY = 18098085;   // network difficulty at ×1.00 (17 Jun 2026)
 
   // Live polling. /api/price is a single KV read and the Worker refreshes it
@@ -1033,9 +1132,7 @@
   const BUILTIN_IDS = DEFAULT_CARDS.map(c=>c.id);
   const CUSTOM_MAX = 20;
   function freshState(){
-    return {price:DEFAULTS.price, diff:DEFAULTS.diff, elec:DEFAULTS.elec, fee:DEFAULTS.fee,
-            growth:DEFAULTS.growth, trend:DEFAULTS.trend, horizon:12,
-            qty:{}, yields:{}, cost:{}, live:{price:true, diff:true}, custom:[]};
+    return Object.assign({}, DEFAULTS, {horizon:12, qty:{}, yields:{}, cost:{}, rate:{}, live:{price:true, diff:true}, custom:[]});
   }
   const isObj = o => !!o && typeof o==='object' && !Array.isArray(o);
   // Custom GPUs: [{id:'c1', name, power (W), yield (PRL/day at ×1.00)}]. Also fed
@@ -1055,9 +1152,12 @@
   // Repair a saved (or link-decoded) state so the rest of the page can trust it.
   function normalizeState(st){
     if(!isObj(st)) st=freshState();
-    ['qty','yields','cost'].forEach(k=>{ if(!isObj(st[k])) st[k]={}; });
+    ['qty','yields','cost','rate'].forEach(k=>{ if(!isObj(st[k])) st[k]={}; });
     st.custom=cleanCustom(st.custom);
     Object.keys(st.yields).forEach(id=>{ if(BUILTIN_IDS.indexOf(id)<0) delete st.yields[id]; });
+    const ids=BUILTIN_IDS.concat(st.custom.map(g=>g.id));
+    // Your rental rate $/h per GPU model; missing = not offered for rent.
+    Object.keys(st.rate).forEach(id=>{ const v=st.rate[id]; if(ids.indexOf(id)<0 || !(typeof v==='number' && v>0 && v<=1000)) delete st.rate[id]; });
     if([6,12,24].indexOf(st.horizon)<0) st.horizon=12;
     if(!isObj(st.live)) st.live={price:true, diff:true};
     st.live.price=st.live.price!==false; st.live.diff=st.live.diff!==false;
@@ -1166,6 +1266,85 @@
     const bePrice=(eff>0 && F<1) ? elecDay/(eff*(1-F)) : Infinity;  // PRL price where net = 0
     return {eff, grossDay, grossH, be, net, bePrice};
   }
+
+  // ---- rent vs self-mine ----
+  // Per card and day each strategy is a straight line in the PRL price P:
+  // value = a + b·P ($/day). With your rate r ($/h), platform fee pf, occupancy
+  // o (hours rented = 24·o), load power eL and idle power eI in $/h:
+  //   rent  = r·24o·(1−pf) − eL·24o − eI·24(1−o)       rented hours, idle the rest
+  //   combo = r·24o·(1−pf) − eL·24  + m(P)·24(1−o)       mine whenever not rented
+  //   self  = m(P)·24 − eL·24                           = calc().net
+  // where m(P) = yield/D·(1−pool fee)·P / 24 is mining income per hour.
+  // A card runs at full power rented or mining, so occupancy cancels between
+  // combo and self: self-mining wins exactly when the break-even rent/h
+  // exceeds your rate after the platform fee.
+  const STRAT_LABEL = {rent:'Rent only', combo:'Rent + mine idle', self:'Self-mine'};
+  const STRAT_TIE = ['rent','self','combo'];      // on a tie prefer the simpler strategy
+  const clamp01 = v => Math.min(1, Math.max(0, v));
+  function rateOf(id){ const v=S.rate[id]; return (typeof v==='number' && v>0) ? v : 0; }
+  function rentLines(c, rate){
+    const D=Math.max(0.01,S.diff), F=clamp01(S.fee/100);
+    const k=baseYield(c)/D*(1-F);                       // $/day per $1 of PRL price, after the pool fee
+    const eL=(c.power/1000)*S.elec, eI=(Math.max(0,S.ridle)/1000)*S.elec;
+    const self={a:-24*eL, b:k};
+    if(!(rate>0)) return {offered:false, rent:self, combo:self, self};
+    const hr=24*clamp01(S.rocc/100), hi=24-hr, R=rate*hr*(1-clamp01(S.rfee/100));
+    return {offered:true, self, rent:{a:R-eL*hr-eI*hi, b:0}, combo:{a:R-eL*24, b:k*hi/24}};
+  }
+  const lineAt = (l,P) => l.a+l.b*P;
+  function bestAt(L, P){
+    let s=STRAT_TIE[0];
+    STRAT_TIE.forEach(k=>{ if(lineAt(L[k],P) > lineAt(L[s],P)+1e-9) s=k; });
+    return s;
+  }
+  // Upper envelope of the three lines over P ≥ 0: [{s, from, to}], solved
+  // analytically (each switch is where a steeper line overtakes the current best).
+  function envelope(L){
+    const segs=[];
+    let from=0, s=bestAt(L,0);
+    for(let guard=0; guard<4; guard++){
+      let next=Infinity, ns=null;
+      STRAT_TIE.forEach(k=>{
+        const db=L[k].b-L[s].b;
+        if(db<=1e-12) return;
+        const x=Math.max(from, (L[s].a-L[k].a)/db);
+        if(x<next-1e-12 || (ns && Math.abs(x-next)<=1e-12 && L[k].b>L[ns].b)){ next=x; ns=k; }
+      });
+      if(!ns){ segs.push({s, from, to:Infinity}); break; }
+      if(next>from) segs.push({s, from, to:next});
+      from=next; s=ns;
+    }
+    return segs;
+  }
+  const segAt = (env,P) => env.find(g=>P>=g.from && P<g.to) || env[env.length-1];
+  // Per card and for the whole set of items (fleet, or one card). A card with no
+  // rate isn't offered: it self-mines under every strategy, so it shifts the
+  // totals equally and never moves a flip price.
+  function rentVerdict(items, P){
+    const L={rent:{a:0,b:0}, combo:{a:0,b:0}, self:{a:0,b:0}};
+    let offered=0, mix=0;
+    const cards=items.map(({c,q})=>{
+      const rate=rateOf(c.id), l=rentLines(c,rate), vals={};
+      ['rent','combo','self'].forEach(k=>{ L[k].a+=q*l[k].a; L[k].b+=q*l[k].b; vals[k]=lineAt(l[k],P); });
+      const env=l.offered ? envelope(l) : null, best=env ? segAt(env,P).s : 'self';
+      if(l.offered) offered+=q;
+      mix+=q*vals[best];
+      return {c, q, rate, offered:l.offered, vals, env, best};
+    });
+    const vals={rent:lineAt(L.rent,P), combo:lineAt(L.combo,P), self:lineAt(L.self,P)};
+    const env=envelope(L), seg=segAt(env,P);
+    return {cards, lines:L, offered, vals, env, best:seg.s, seg, mix};
+  }
+  const fmtP = v => v>=100 ? usd(v,0) : v>=1 ? '$'+v.toFixed(2) : '$'+v.toFixed(3);
+  // "Self-mine wins above PRL $2.31 (+151%)" — the neighbours of the current segment.
+  function flipNotes(env, P){
+    const i=Math.max(0, env.findIndex(g=>P>=g.from && P<g.to)), out=[];
+    const rel = x => P>0 ? ' ('+(x>=P?'+':'−')+pctTxt(Math.abs(x/P-1))+')' : '';
+    if(env[i+1]) out.push({s:env[i+1].s, dir:'above', p:env[i+1].from, txt:STRAT_LABEL[env[i+1].s]+' wins above PRL '+fmtP(env[i+1].from)+rel(env[i+1].from)});
+    if(i>0) out.push({s:env[i-1].s, dir:'below', p:env[i-1].to, txt:STRAT_LABEL[env[i-1].s]+' wins below PRL '+fmtP(env[i-1].to)+rel(env[i-1].to)});
+    return out;
+  }
+
   function fleetAt(P){
     let q=0, net=0;
     CARDS.forEach(c=>{ const n=S.qty[c.id]||0; if(n>0){ q+=n; net+=calc(c,P).net*n; } });
@@ -1336,6 +1515,22 @@
       sumEl.bep._v=undefined; sumEl.bep.textContent='—';
       bepSub.textContent = A>0 ? 'power is free — never a loss' : 'no yield set';
     }
+    renderSumVerdict(items);
+  }
+  // One line of "Rent vs mine" for the same GPUs (details in the Analysis tab).
+  function renderSumVerdict(items){
+    const v=rentVerdict(items, S.price), txt=$('#sumVerdictTxt'), btn=$('#sumVerdictBtn');
+    if(!v.offered){
+      txt.textContent='Renting GPUs out too? Add your $/h rates to see whether renting or self-mining pays more.';
+      btn.textContent='Compare';
+      return;
+    }
+    const runner=['rent','combo','self'].filter(k=>k!==v.best).reduce((a,b)=>v.vals[a]>=v.vals[b]?a:b);
+    const gap=v.vals[v.best]-v.vals[runner], flips=flipNotes(v.env, S.price);
+    txt.innerHTML='Rent vs mine at PRL $'+esc(S.price.toFixed(2))+': <b>'+STRAT_LABEL[v.best]+'</b> pays most, '+esc(money(v.vals[v.best]))+'/day'+
+      (gap>=0.005 ? ' (+'+esc(money(gap))+' vs '+STRAT_LABEL[runner].toLowerCase()+')' : '')+'.'+
+      (flips.length ? ' '+esc(flips[0].txt)+'.' : '');
+    btn.textContent='Details';
   }
 
   // ---- paired range+number controls, with live/manual mode for price & difficulty ----
@@ -1442,8 +1637,8 @@
   function refreshAll(){
     rebuildCards();
     renderRows();
-    ['price','diff','elec','fee','growth','trend'].forEach(syncControl);
-    roi.costSig='';
+    ['price','diff','elec','fee','growth','trend','rfee','rocc','ridle'].forEach(syncControl);
+    roi.costSig=''; rentG.sig='';
     renderHints();
     compute();
   }
@@ -2059,8 +2254,44 @@
       ? 'Your fleet is empty — showing 1× RTX 5090. Set a Qty in the table to analyse your own GPUs.'
       : 'Analysing '+sub.label+' at PRL $'+S.price.toFixed(2)+' · difficulty ×'+S.diff.toFixed(2)+
         ' · power $'+S.elec.toFixed(2)+'/kWh · pool fee '+S.fee+'%';
-    drawMap(sub); drawRoi(sub); drawEff(sub);
+    drawMap(sub); drawRoi(sub); drawEff(sub); drawRent(sub);
   }
+
+  // ---- tabs: one Analysis view at a time (your pick is remembered per browser) ----
+  const TABS=['map','roi','eff','rent'];
+  let anTab=store.get('pearlrate:antab','map');
+  if(TABS.indexOf(anTab)<0) anTab='map';
+  function applyTab(){
+    TABS.forEach(k=>{
+      const b=$('#tab-'+k), on=k===anTab;
+      b.setAttribute('aria-selected',String(on));
+      b.tabIndex=on ? 0 : -1;
+      $('#'+b.getAttribute('aria-controls')).hidden=!on;
+    });
+  }
+  function showTab(t){
+    anTab=t;
+    store.set('pearlrate:antab',t);
+    applyTab();
+    drawAnalysis();
+  }
+  $('#anTabs').addEventListener('click',e=>{ const b=e.target.closest('[role="tab"]'); if(b) showTab(b.id.slice(4)); });
+  $('#anTabs').addEventListener('keydown',e=>{
+    const i=TABS.indexOf(anTab);
+    let j;
+    if(e.key==='ArrowRight') j=(i+1)%TABS.length;
+    else if(e.key==='ArrowLeft') j=(i+TABS.length-1)%TABS.length;
+    else if(e.key==='Home') j=0;
+    else if(e.key==='End') j=TABS.length-1;
+    else return;
+    e.preventDefault(); showTab(TABS[j]); $('#tab-'+TABS[j]).focus();
+  });
+  $('#sumVerdictBtn').addEventListener('click',()=>{
+    showTab('rent');
+    $('#analysis').scrollIntoView({block:'start', behavior: reduceMotion ? 'auto' : 'smooth'});
+    const first=$('#rentRates .ratein');
+    if(first && !rentVerdict(subject().items, S.price).offered) first.focus({preventScroll:true});
+  });
 
   // ---- profitability map (price × difficulty heat map) ----
   const mapSvg=$('#mapSvg'), mapCanvas=$('#mapCanvas'), mapWrap=$('#mapWrap'), mapTip=$('#mapTip');
@@ -2492,9 +2723,156 @@
   effSvg.addEventListener('pointerdown',effHover);
   effSvg.addEventListener('pointerleave',()=>{ effTip.hidden=true; });
 
+  // ---- rent vs mine (maths: rentLines / rentVerdict next to calc) ----
+  const rentSvg=$('#rentSvg'), rentWrap=$('#rentWrap'), rentTip=$('#rentTip');
+  const RENT_ORDER=['rent','combo','self'];
+  const RENT_COL={rent:'--arch-amp', combo:'--arch-bw', self:'--arch-ada'};
+  const rentG={sig:'', geo:null};
+  $('#rentLegend').innerHTML=RENT_ORDER.map(k=>'<span><span class="sw" style="background:var('+RENT_COL[k]+')"></span>'+STRAT_LABEL[k]+'</span>').join('')+
+    '<span><span class="sw ring"></span>price where the best choice flips</span>';
+  function renderRates(sub){
+    const box=$('#rentRates'), sig=sub.items.map(x=>x.c.id+':'+x.q).join('|');
+    if(sig!==rentG.sig){
+      rentG.sig=sig; box.textContent='';
+      sub.items.forEach(({c,q})=>{
+        const row=document.createElement('label'); row.className='costrow';
+        const nm=document.createElement('span'); nm.className='ratelab';
+        const t=document.createElement('span'); t.textContent=(q>1 ? q+'× ' : '')+c.name;
+        const sm=document.createElement('small'); sm.className='ratebe'; sm.dataset.id=c.id;
+        nm.append(t, sm);
+        const wrap=document.createElement('span'); wrap.className='costbox';
+        const inp=document.createElement('input');
+        inp.type='number'; inp.min='0'; inp.step='0.01'; inp.inputMode='decimal'; inp.className='costin ratein'; inp.dataset.id=c.id;
+        inp.placeholder='—'; inp.value=rateOf(c.id)>0 ? String(rateOf(c.id)) : '';
+        inp.setAttribute('aria-label', c.name+' rental rate, USD per hour — leave empty if not offered');
+        wrap.append('$', inp, '/h');
+        row.append(nm, wrap); box.appendChild(row);
+      });
+    }
+    // Reference next to each rate: the most a PRL miner could pay for that card.
+    box.querySelectorAll('.ratebe').forEach(el=>{ const c=cardById(el.dataset.id); if(c) el.textContent='miner break-even '+moneyH(calc(c,S.price).be)+'/h'; });
+  }
+  $('#rentRates').addEventListener('input',e=>{
+    const inp=e.target.closest('.ratein'); if(!inp) return;
+    const raw=inp.value.trim(), n=parseFloat(raw);
+    if(raw==='' || !(n>0)) delete S.rate[inp.dataset.id];
+    else if(n<=1000) S.rate[inp.dataset.id]=n;
+    persist(); renderSummary(); drawRent(subject());
+  });
+
+  function drawRent(sub){
+    renderRates(sub);
+    const P0=S.price, v=rentVerdict(sub.items, P0), has=v.offered>0;
+    let tiles;
+    if(has){
+      const runner=RENT_ORDER.filter(k=>k!==v.best).reduce((a,b)=>v.vals[a]>=v.vals[b]?a:b), gap=v.vals[v.best]-v.vals[runner];
+      tiles=[['Best at PRL $'+P0.toFixed(2), STRAT_LABEL[v.best], gap>=0.005 ? '+'+money(gap)+'/day vs '+STRAT_LABEL[runner].toLowerCase() : 'tied with '+STRAT_LABEL[runner].toLowerCase(), 'tvs', false]]
+        .concat(RENT_ORDER.map(k=>[STRAT_LABEL[k], money(v.vals[k])+'/day', '≈ '+usd(v.vals[k]*MONTH_DAYS,0)+' per month', v.vals[k]>=0?'pos':'neg', k===v.best]));
+    } else {
+      tiles=[['Self-mine', money(v.vals.self)+'/day', sub.label+' · no rental rate set', v.vals.self>=0?'pos':'neg', false]];
+    }
+    $('#rentTiles').innerHTML=tiles.map(t=>'<div class="tile'+(t[4]?' best':'')+'"><div class="tl">'+esc(t[0])+'</div><div class="tv'+(t[3]?' '+t[3]:'')+'">'+esc(t[1])+'</div><div class="ts">'+esc(t[2])+'</div></div>').join('');
+
+    let ft='';
+    if(has){
+      const notes=flipNotes(v.env, P0);
+      ft = notes.length ? notes.map(n=>esc(n.txt)+'.').join(' ') : '<b>'+STRAT_LABEL[v.best]+'</b> wins at every PRL price.';
+      if(v.mix>v.vals[v.best]+0.005) ft+=' Picking the best strategy per GPU model instead: <b>'+esc(money(v.mix))+'/day</b>.';
+      if(v.vals[v.best]<0) ft+=' Every option loses money at this price.';
+    }
+    const flipEl=$('#rentFlip');
+    flipEl.innerHTML=ft; flipEl.hidden=!ft;
+    $('#rentEmpty').hidden=has; rentWrap.hidden=!has; $('#rentLegend').hidden=!has;
+
+    const list=$('#rentList');
+    list.innerHTML = sub.items.length<2 ? '' : v.cards.map(x=>{
+      const nm=esc((x.q>1 ? x.q+'× ' : '')+x.c.name);
+      if(!x.offered) return '<div class="rlrow"><span class="rln">'+nm+'</span><span>not offered — self-mines</span><span class="rlv">'+esc(money(x.q*x.vals.self))+'/day</span></div>';
+      const fl=flipNotes(x.env, P0)[0];
+      return '<div class="rlrow"><span class="rln">'+nm+'</span><span class="rlb">'+STRAT_LABEL[x.best]+'</span><span>at '+esc(moneyH(x.rate))+'/h'+
+        (fl ? ' · '+STRAT_LABEL[fl.s].toLowerCase()+' '+fl.dir+' PRL '+esc(fmtP(fl.p)) : '')+'</span><span class="rlv">'+esc(money(x.q*x.vals[x.best]))+'/day</span></div>';
+    }).join('');
+
+    if(!has){ rentG.geo=null; rentTip.hidden=true; return; }
+    const W=rentSvg.clientWidth, H=rentSvg.clientHeight;
+    if(W<160 || H<100) return;
+    rentSvg.setAttribute('viewBox','0 0 '+W+' '+H);
+    // Wide charts label each line in a right margin; narrow ones rely on the legend.
+    const wide=W>=520, padL=56, padR=wide ? 118 : 16, padT=14, padB=34;
+    const plotW=W-padL-padR, plotH=H-padT-padB, yBot=padT+plotH, xR=padL+plotW;
+    // Price axis anchored to the market so it holds still while you drag; flips nearby are pulled in.
+    const Pb=LIVE.price ? LIVE.price.price : P0;
+    let Pm=Math.max(Pb*2.5, P0*1.3, 0.5);
+    v.env.slice(1).forEach(g=>{ if(g.from<Pm*3) Pm=Math.max(Pm, g.from*1.25); });
+    const Pmax=axisMax(Pm,4), L=v.lines;
+    let lo=0, hi=0;
+    RENT_ORDER.forEach(k=>[0,Pmax].forEach(P=>{ const y=lineAt(L[k],P); lo=Math.min(lo,y); hi=Math.max(hi,y); }));
+    if(hi-lo<1e-6) hi=lo+1;
+    const yt=linTicks(lo-(hi-lo)*0.05, hi+(hi-lo)*0.08, plotH<200?4:5);
+    const ylo=Math.min(yt.ticks[0],lo), yhi=Math.max(yt.ticks[yt.ticks.length-1],hi);
+    const X=P=>padL+P/Pmax*plotW, Y=val=>padT+(1-(val-ylo)/(yhi-ylo))*plotH;
+    const yfmt = yt.step<1 ? (x=>usd(x, stepDp(yt.step))) : compactUsd;
+    const out=[];
+    yt.ticks.forEach(t=>{ if(t<ylo-1e-9 || t>yhi+1e-9) return; const y=fx(Y(t)); out.push('<line class="grid" x1="'+padL+'" x2="'+xR+'" y1="'+y+'" y2="'+y+'"/><text class="axlab" x="'+(padL-8)+'" y="'+fx(Y(t)+3)+'" text-anchor="end">'+yfmt(t)+'</text>'); });
+    const xt=linTicks(0,Pmax,Math.max(3,Math.min(8,Math.floor(plotW/70)))), xdp=stepDp(xt.step);
+    xt.ticks.forEach(t=>{ const x=fx(X(t)); out.push('<line class="axis" x1="'+x+'" x2="'+x+'" y1="'+yBot+'" y2="'+(yBot+4)+'"/><text class="axlab" x="'+x+'" y="'+(yBot+15)+'" text-anchor="middle">$'+t.toFixed(xdp)+'</text>'); });
+    out.push('<line class="axis" x1="'+padL+'" x2="'+xR+'" y1="'+yBot+'" y2="'+yBot+'"/>'+
+             '<text class="axtitle" x="'+xR+'" y="'+(H-3)+'" text-anchor="end">PRL price (USDT) →</text>'+
+             '<text class="axtitle" transform="translate(11,'+fx(padT+plotH/2)+') rotate(-90)" text-anchor="middle">Net $ / day →</text>');
+    if(ylo<0 && yhi>0) out.push('<line class="zero" x1="'+padL+'" x2="'+xR+'" y1="'+fx(Y(0))+'" y2="'+fx(Y(0))+'"/>');
+    // The best choice at every price (shaded underlay), then the three strategies.
+    let env='';
+    v.env.forEach(g=>{
+      if(g.from>Pmax) return;
+      const p1=Math.min(g.to,Pmax);
+      env+=(env?' L':'M')+fx(X(g.from))+' '+fx(Y(lineAt(L[g.s],g.from)))+' L'+fx(X(p1))+' '+fx(Y(lineAt(L[g.s],p1)));
+    });
+    out.push('<path class="env" d="'+env+'"/>');
+    RENT_ORDER.forEach(k=>out.push('<path class="sl" style="stroke:var('+RENT_COL[k]+')" d="M'+fx(X(0))+' '+fx(Y(lineAt(L[k],0)))+' L'+fx(xR)+' '+fx(Y(lineAt(L[k],Pmax)))+'"/>'));
+    if(P0<=Pmax){
+      const x=X(P0);
+      out.push('<line class="now" x1="'+fx(x)+'" x2="'+fx(x)+'" y1="'+padT+'" y2="'+yBot+'"/>');
+      pill(out,'now $'+P0.toFixed(2), x+(x+90>xR ? -6 : 6), padT+10, x+90>xR ? 'end' : 'start', 'labb');
+    }
+    v.env.slice(1).forEach(g=>{
+      if(g.from>Pmax) return;
+      const x=X(g.from), y=Y(lineAt(L[g.s],g.from));
+      out.push('<circle class="flip" cx="'+fx(x)+'" cy="'+fx(y)+'" r="5"/>');
+      pill(out, fmtP(g.from), x, y+(y>yBot-26 ? -12 : 20), 'middle', 'lab');
+    });
+    // Direct labels just past each line's right end, nudged apart.
+    if(wide){
+      const ends=RENT_ORDER.map(k=>({k, y:Y(lineAt(L[k],Pmax))+4})).sort((a,b)=>a.y-b.y);
+      for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
+      const over=ends[ends.length-1].y-(yBot+4);
+      if(over>0) ends.forEach(e=>{ e.y-=over; });
+      ends.forEach(e=>pill(out, STRAT_LABEL[e.k], xR+9, e.y, 'start', 'lab'));
+    }
+    out.push('<g class="rhov" style="display:none"><line class="hx"/></g>');
+    rentSvg.innerHTML=out.join('');
+    rentG.geo={X, padL, plotW, padT, yBot, Pmax, L};
+    rentSvg.setAttribute('aria-label','Net profit per day for rent only, rent plus mine idle and self-mine across PRL prices. At PRL $'+P0.toFixed(2)+
+      ' the best is '+STRAT_LABEL[v.best].toLowerCase()+' at '+money(v.vals[v.best])+' per day.'+
+      (v.env.length>1 ? ' The best choice flips at PRL '+v.env.slice(1).map(g=>fmtP(g.from)).join(' and ')+'.' : ''));
+  }
+  function rentHover(e){
+    const g=rentG.geo, pt=g && svgPoint(rentSvg,e);
+    if(!pt) return;
+    const P=Math.max(0, Math.min(g.Pmax, (pt.x-g.padL)/g.plotW*g.Pmax)), best=bestAt(g.L,P), x=g.X(P);
+    tipRows(rentTip, [['tt-v','PRL $'+P.toFixed(2)]].concat(RENT_ORDER.map(k=>['tt-f', STRAT_LABEL[k]+': '+money(lineAt(g.L[k],P))+'/day'+(k===best?' — best':'')])));
+    const grp=rentSvg.querySelector('.rhov'), hx=grp && grp.querySelector('.hx');
+    if(hx){ hx.setAttribute('x1',x); hx.setAttribute('x2',x); hx.setAttribute('y1',g.padT); hx.setAttribute('y2',g.yBot); grp.style.display=''; }
+    placeTip(rentTip, rentWrap, x, pt.y);
+  }
+  function rentHide(){ rentTip.hidden=true; const grp=rentSvg.querySelector('.rhov'); if(grp) grp.style.display='none'; }
+  rentSvg.addEventListener('pointermove',rentHover);
+  rentSvg.addEventListener('pointerdown',rentHover);
+  rentSvg.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') rentHide(); });
+  rentSvg.addEventListener('pointercancel',rentHide);
+
   let arz=0;
   const onAnalysisResize=()=>{ cancelAnimationFrame(arz); arz=requestAnimationFrame(drawAnalysis); };
-  if('ResizeObserver' in window){ const ro=new ResizeObserver(onAnalysisResize); [mapWrap, roiWrap, effWrap].forEach(el=>ro.observe(el)); }
+  if('ResizeObserver' in window){ const ro=new ResizeObserver(onAnalysisResize); [mapWrap, roiWrap, effWrap, rentWrap].forEach(el=>ro.observe(el)); }
   else window.addEventListener('resize',onAnalysisResize);
 
   // ======== Share a scenario (#s= link), CSV export, custom GPUs ========
@@ -2539,6 +2917,9 @@
     if(cost) a.c=cost;
     if(subjectSel!=='fleet' && cardById(subjectSel)) a.s=subjectSel;
     o.a=a;
+    const r={f:r4(S.rfee), o:r4(S.rocc), i:r4(S.ridle)}, rt=pickNums(S.rate, ids);
+    if(rt) r.rt=rt;
+    o.r=r;
     return o;
   }
   function scenarioUrl(){ return location.origin+location.pathname+'#s='+b64urlEncode(JSON.stringify(scenarioOf())); }
@@ -2567,6 +2948,10 @@
       if([6,12,24].indexOf(o.a.h)>=0) st.horizon=o.a.h;
       if(isObj(o.a.c)) Object.keys(o.a.c).forEach(k=>{ const v=n(o.a.c[k],0,1e6); if(ids.indexOf(k)>=0 && v!==undefined) st.cost[k]=v; });
       if(typeof o.a.s==='string' && ids.indexOf(o.a.s)>=0) subject=o.a.s;
+    }
+    if(isObj(o.r)){
+      setNum('rfee',o.r.f,0,100); setNum('rocc',o.r.o,0,100); setNum('ridle',o.r.i,0,2000);
+      if(isObj(o.r.rt)) Object.keys(o.r.rt).forEach(k=>{ const v=n(o.r.rt[k],0.0001,1000); if(ids.indexOf(k)>=0 && v!==undefined) st.rate[k]=v; });
     }
     return {state:normalizeState(st), subject};
   }
@@ -2667,19 +3052,25 @@
       ['Network difficulty ×', S.diff], ['Difficulty mode', S.live.diff ? 'live' : 'manual'],
       ['Difficulty at ×1.00', BASELINE_DIFFICULTY],
       ['Electricity $/kWh', S.elec], ['Pool fee %', S.fee],
+      ['Rental platform fee % (assumption)', S.rfee], ['Expected occupancy %', S.rocc], ['Idle draw W per GPU', S.ridle],
       ['Scenario link', scenarioUrl()],
       [],
       ['GPU','Type','Architecture','Power W','Qty','Yield PRL/day @ ×1.00','Yield PRL/day','Gross $/day','Gross $/h',
-       'Break-even rent $/h','Self-mine net $/day','Qty × self-mine net $/day']
+       'Break-even rent $/h','Self-mine net $/day','Qty × self-mine net $/day',
+       'Your rate $/h','Rent only net $/day','Rent + mine idle net $/day','Best now']
     ];
     let tQ=0, tW=0, tY=0, tGD=0, tGH=0, tBE=0, tN=0;
     CARDS.forEach(c=>{
-      const r=calc(c,S.price), q=S.qty[c.id]||0;
+      const r=calc(c,S.price), q=S.qty[c.id]||0, rv=rentVerdict([{c,q:1}], S.price), x=rv.cards[0];
       const type=c.custom ? 'custom' : hasOverride(c.id) ? 'override' : c.est ? 'estimated' : 'verified';
-      rows.push([c.name, type, c.arch, c.power, q, baseYield(c), r.eff, r.grossDay, r.grossH, r.be, r.net, r.net*q]);
+      rows.push([c.name, type, c.arch, c.power, q, baseYield(c), r.eff, r.grossDay, r.grossH, r.be, r.net, r.net*q,
+                 x.offered ? x.rate : '', x.offered ? x.vals.rent : '', x.offered ? x.vals.combo : '', x.offered ? STRAT_LABEL[x.best] : 'not offered']);
       tQ+=q; tW+=q*c.power; tY+=r.eff*q; tGD+=r.grossDay*q; tGH+=r.grossH*q; tBE+=r.be*q; tN+=r.net*q;
     });
-    rows.push(['Fleet total','','',tW,tQ,'',tY,tGD,tGH,tBE,tN,tN]);
+    // Fleet strategy totals: GPUs without a rate self-mine under every strategy.
+    const fleet=CARDS.filter(c=>(S.qty[c.id]||0)>0).map(c=>({c, q:S.qty[c.id]})), fv=rentVerdict(fleet, S.price);
+    rows.push(['Fleet total','','',tW,tQ,'',tY,tGD,tGH,tBE,tN,tN,'',
+               fv.offered ? fv.vals.rent : '', fv.offered ? fv.vals.combo : '', fv.offered ? STRAT_LABEL[fv.best] : '']);
     const text='﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n';
     const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');
@@ -2746,7 +3137,7 @@
     const id=gfEditing;
     if(!id) return;
     S.custom=S.custom.filter(x=>x.id!==id);
-    delete S.qty[id]; delete S.cost[id];
+    delete S.qty[id]; delete S.cost[id]; delete S.rate[id];
     if(subjectSel===id){ subjectSel='fleet'; if(!preview) store.set('pearlrate:subject','fleet'); }
     persist(); refreshAll(); closeGpuForm(null);
   });
@@ -2765,6 +3156,10 @@
   bindPair('fee','#feeRange','#feeNum',null);
   bindPair('growth','#growthRange','#growthNum',null);
   bindPair('trend','#trendRange','#trendNum',null);
+  bindPair('rfee','#rfeeRange','#rfeeNum',null);
+  bindPair('rocc','#roccRange','#roccNum',null);
+  bindPair('ridle','#ridleRange','#ridleNum',null);
+  applyTab();
   renderHints();
   renderBadge();
   updateTitle(null);

@@ -20,11 +20,17 @@ async function makeLink(page) {
   await page.fill('#gfYield', '1.25');
   await page.click('#gfSave');
   await page.fill('#rows tr[data-id="c1"] .qty', '3');
+  await page.click('#tab-roi');
   await page.fill('#growthNum', '8');
   await page.fill('#trendNum', '-2');
   await page.click('#roiHorizon button[data-h="24"]');
   await page.selectOption('#subject', '4090');
   await page.locator('#roiCosts .costin[data-id="4090"]').fill('1500');
+  await page.click('#tab-rent');
+  await page.fill('#rentRates .ratein[data-id="4090"]', '0.33');
+  await page.fill('#rfeeNum', '20');
+  await page.fill('#roccNum', '75');
+  await page.fill('#ridleNum', '40');
   await page.click('#copyLinkBtn');
   await expect(page.locator('#shareStatus')).toHaveText('Link copied');
   const link = await page.evaluate(() => navigator.clipboard.readText());
@@ -66,6 +72,10 @@ test('a shared link previews the full scenario without touching the visitor’s 
   await expect(other.locator('#roiHorizon button[data-h="24"]')).toHaveClass(/active/);
   await expect(other.locator('#subject')).toHaveValue('4090');
   await expect(other.locator('#roiCosts .costin[data-id="4090"]')).toHaveValue('1500');
+  await expect(other.locator('#rentRates .ratein[data-id="4090"]')).toHaveValue('0.33');
+  await expect(other.locator('#rfeeNum')).toHaveValue('20');
+  await expect(other.locator('#roccNum')).toHaveValue('75');
+  await expect(other.locator('#ridleNum')).toHaveValue('40');
 
   // Same numbers as the sender sees.
   await expect(other.locator('#fNet')).toHaveText(await page.locator('#fNet').textContent());

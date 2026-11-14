@@ -35,6 +35,7 @@ test('a custom GPU joins the table, fleet totals, summary and every analysis vie
   await expect(page.locator('#anSub')).toContainText('your fleet');
   await expect(page.locator('#roiCosts .costrow')).toContainText('2× Lab A6000');
   await expect(page.locator('#costHint')).toContainText('custom GPUs');
+  await page.click('#tab-eff');
   await expect(page.locator('#effSvg circle.bub')).toHaveCount(9);
   await expect(page.locator('#effLegend')).toContainText('Custom');
   await expect(page.locator('#effRank .rrow')).toHaveCount(9);
