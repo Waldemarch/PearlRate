@@ -1,0 +1,12 @@
+{
+  "name": "pearlrate-e2e",
+  "private": true,
+  "description": "Playwright end-to-end tests for the PearlRate static dashboard (kept out of the repo root so Cloudflare Pages never installs or ships them).",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

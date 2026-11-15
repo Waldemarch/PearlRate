@@ -7,6 +7,12 @@
 //         /api/difficulty). One combined key, written only on change (+ a
 //         heartbeat), to stay well under the free KV write quota.
 //   - D1  PRICE_DB  table prl_price -> full history (served by /api/history)
+//   - D1  PRICE_DB  table prl_difficulty -> one row per hourly difficulty tick
+//         (served by /api/difficulty-history; created on first write)
+//
+// After each update it evaluates the owner's Telegram alert rules (see
+// lib/alerts.js and AUTOMATION.md). Alerts are off unless the
+// TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID secrets are set.
 //
 // This replaces the Mac-mini updater: no machine to keep awake, no shared
 // token (the writes happen inside Cloudflare via bindings, not over HTTP).
@@ -27,6 +33,9 @@
 //   PRL_GT_NETWORK      GeckoTerminal network slug (default "eth")
 //   PRL_COINGECKO_ID    CoinGecko coin id (default "wrapped-pearl")
 //   COINGECKO_API_KEY   demo key, sent as x-cg-demo-api-key
+
+import { appendDifficulty } from "./lib/difficulty-history.js";
+import { alertsEnabled, marketFrom, runAlerts, testAlerts } from "./lib/alerts.js";
 
 // KV is one combined key (prl_state = {price, diff}) so each scheduled run
 // touches a single key, and we only PUT when the value actually changed — the
@@ -177,6 +186,7 @@ async function updatePrice(env, opts) {
     await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
   }
   record.wrote = wrote;
+  if (opts && opts.out) opts.out.state = { ...state, price: record }; // fresh market for the alerts
 
   // Full history -> D1 (for the chart). Don't fail the run if this hiccups.
   if (env.PRICE_DB) {
@@ -288,6 +298,18 @@ async function updateDifficulty(env, opts) {
     await env.PRICE_KV.put(STATE_KEY, JSON.stringify(state));
   }
   record.wrote = wrote;
+  if (opts && opts.out) opts.out.state = { ...state, diff: record };
+
+  // History -> D1: one row per tick regardless of the KV write-on-change (D1
+  // has its own, far larger quota). The table is created on first use; a
+  // missing binding or a failed insert never affects the KV update above.
+  try {
+    const h = await appendDifficulty(env.PRICE_DB, record);
+    record.history = h.stored ? (h.created ? "table created, row stored" : "row stored") : h.reason;
+  } catch (e) {
+    record.history = "failed";
+    console.error("D1 difficulty history write failed:", e && e.message);
+  }
   return record;
 }
 
@@ -312,22 +334,47 @@ async function debugDifficulty(env) {
   return { baseline, sources };
 }
 
+// Telegram alerts after an update. Never throws: an alert problem must not
+// look like a failed price/difficulty update. Costs nothing when disabled.
+async function checkAlerts(env, state) {
+  if (!alertsEnabled(env) || !state) return;
+  try {
+    const r = await runAlerts(env, marketFrom(state));
+    const notable = (r.results || []).filter((x) => x.notified || x.suppressed || x.error);
+    if (notable.length || r.skipped) console.log("alerts:", JSON.stringify({ skipped: r.skipped, results: notable }));
+  } catch (e) {
+    console.error("alerts failed:", e && e.message);
+  }
+}
+
+// Constant-time Bearer check against the PRICE_TOKEN secret.
+function tokenOk(request, env) {
+  const want = env.PRICE_TOKEN || "";
+  const given = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!want || given.length !== want.length) return false;
+  let diff = 0;
+  for (let i = 0; i < want.length; i++) diff |= given.charCodeAt(i) ^ want.charCodeAt(i);
+  return diff === 0;
+}
+
 export default {
   // Cron Trigger entry point. Two schedules share this Worker: the frequent
   // price tick and the hourly difficulty tick (see PRICE_CRON / DIFF_CRON).
+  // Each is followed by an alert check on the fresh market data.
   async scheduled(event, env, ctx) {
+    const out = {};
     if (event.cron === DIFF_CRON) {
       // Difficulty is best-effort and independent — its failure can't affect price.
       ctx.waitUntil(
-        updateDifficulty(env)
-          .then((r) => console.log("updated PRL difficulty:", JSON.stringify(r)))
+        updateDifficulty(env, { out })
+          .then((r) => { console.log("updated PRL difficulty:", JSON.stringify(r)); return checkAlerts(env, out.state); })
           .catch((e) => console.error("difficulty update failed:", e && e.message))
       );
       return;
     }
     ctx.waitUntil(
-      updatePrice(env)
-        .then((r) => console.log("updated PRL price:", JSON.stringify(r)))
+      updatePrice(env, { out })
+        .then((r) => { console.log("updated PRL price:", JSON.stringify(r)); return checkAlerts(env, out.state); })
         .catch((e) => console.error("price update failed:", e && e.message))
     );
   },
@@ -355,6 +402,18 @@ export default {
     }
     if (url.searchParams.get("diffdebug") === "1") {
       return Response.json(await debugDifficulty(env));
+    }
+    // Alert test trigger (owner only): evaluates the rules against the stored
+    // market without changing any alert state and sends one test message.
+    //   curl -H "Authorization: Bearer $PRICE_TOKEN" ".../?alerts=test"   (&send=0: no message)
+    if (url.searchParams.get("alerts") === "test") {
+      const noStore = { "Cache-Control": "no-store" };
+      if (!env.PRICE_TOKEN) {
+        return Response.json({ error: "test trigger disabled: set the PRICE_TOKEN secret on this Worker" }, { status: 403, headers: noStore });
+      }
+      if (!tokenOk(request, env)) return Response.json({ error: "unauthorized" }, { status: 401, headers: noStore });
+      const report = await testAlerts(env, marketFrom(await readState(env)), { send: url.searchParams.get("send") !== "0" });
+      return Response.json(report, { headers: noStore });
     }
     return new Response("pearlrate price cron worker — ok\n", {
       headers: { "Content-Type": "text/plain; charset=utf-8" },

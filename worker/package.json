@@ -1,0 +1,12 @@
+{
+  "name": "pearlrate-price-cron",
+  "private": true,
+  "description": "Scheduled Cloudflare Worker for PearlRate (deployed with wrangler; no runtime dependencies). This file only marks the sources as ES modules and wires up the node:test unit tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --test --test-reporter=spec \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
